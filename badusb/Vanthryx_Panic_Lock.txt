@@ -1,0 +1,51 @@
+REM ==============================================================
+REM  Vanthryx_Panic_Lock.txt
+REM
+REM  Defensive-use BadUSB payload. When the Flipper is plugged
+REM  into a Windows workstation you are already logged into,
+REM  this payload:
+REM    1. Drops an ISO-8601 timestamped breadcrumb into
+REM       BugReaperX logs at
+REM       %USERPROFILE%\BugReaperX_Supreme\logs\flipper_panic.log
+REM    2. Locks the workstation via the canonical Windows API
+REM       (WINDOWS l).
+REM
+REM  Twist vs. a vanilla Win+L: the breadcrumb lets BugReaperX
+REM  correlate panic-lock events with subsequent login attempts,
+REM  session durations, and any post-panic file modifications.
+REM  This is purely defensive -- logs are written INSIDE the
+REM  user's profile, not exfiltrated.
+REM
+REM  Authorized target only: operator's own workstation. Win+L
+REM  locks the currently interactive session, so misuse on
+REM  another user's machine just locks your own session (safe
+REM  but confusing).
+REM
+REM  Implementation notes:
+REM    - Timestamp is emitted by PowerShell `(Get-Date).ToString('o')`,
+REM      producing e.g. "2026-07-19T15:08:30.1234567-07:00". This is
+REM      locale-INDEPENDENT so BugReaperX can regex-parse it without
+REM      caring whether the host is en-US, de-DE, fr-FR, etc.
+REM    - New-Item -ItemType Directory -Force pre-creates the logs
+REM      subdir if it doesn't exist, so the very first run no longer
+REM      flashes a "The system cannot find the path specified." error.
+REM    - Add-Content lazily creates flipper_panic.log if missing.
+REM ==============================================================
+
+ID 1234:5678 Flipper Zero
+
+DEFAULT_DELAY 100
+DELAY 800
+
+REM Open Run, write an ISO-8601 timestamped breadcrumb via PowerShell,
+REM then send the Win+L chord. The command is one long STRING -- Ducky
+REM does not care about whitespace inside `STRING` arguments because
+REM we use double-quoted PowerShell.
+GUI r
+DELAY 600
+STRING powershell -NoProfile -WindowStyle Hidden -Command "$l = Join-Path $env:USERPROFILE 'BugReaperX_Supreme\logs\flipper_panic.log'; New-Item -ItemType Directory -Force -Path (Split-Path -Parent $l) | Out-Null; Add-Content -Path $l -Value ((Get-Date).ToString('o') + ' Flipper-Panic-Lock')"
+ENTER
+DELAY 500
+WINDOWS l
+
+REM Validate with:  python ..\scripts\verify_flipper_files.py

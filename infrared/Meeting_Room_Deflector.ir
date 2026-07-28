@@ -1,0 +1,65 @@
+Filetype: IR signals file
+Version: 1
+#
+# ==============================================================
+#  Meeting_Room_Deflector.ir
+#
+#  >>> PRIVACY-MODE IS STICKY ON PURPOSE. <<<
+#  If you load and broadcast these codes in a meeting you intended
+#  to stay visible in, you WILL Display_Off the room's projector.
+#  Treat this palette as a one-way shield: only load right before a
+#  presentation where you genuinely want the room's A/V muted.
+#
+#  Defensive-use IR signal palette. Loads onto the Flipper under
+#  Infrared -> Saved, then "Send" broadcasts these NEC codes
+#  against a chosen TV / projector / soundbar within range
+#  (typically 5-10 m line-of-sight).
+#
+#  Twist vs. a vanilla remote capture: this is a defensive
+#  "engage privacy mode" palette -- Mute + Display_Off for
+#  common enterprise A/V gear, intended to silence a screen
+#  if BugReaperX / Vanthryx output accidentally gets cast to a
+#  shared projector.
+#
+#  All address: and command: values below are SYNTHESIZED
+#  placeholders, NOT captured from any real device. Verify
+#  against the actual remote for your specific A/V hardware
+#  before relying on these in production. If they do not
+#  match, replace address: 04 00 and command: 07 F3 / F4 / F1
+#  with the values captured from your own device.
+#
+#  NEC protocol structure:
+#    - 8-bit address, 8-bit command (auto-complemented on
+#      the wire by NEC's built-in parity).
+#    - Leader 9 ms high + 4.5 ms low + 32 data bits + 560 us
+#      trailer. The Flipper builds this transparently from
+#      the parsed fields below.
+# ==============================================================
+#
+name: Mute
+type: parsed
+protocol: NEC
+address: 04 00
+command: 07 F3
+#
+name: Display_Off
+type: parsed
+protocol: NEC
+address: 04 00
+command: 07 F4
+#
+name: Volume_Down_x3
+type: parsed
+protocol: NEC
+address: 04 00
+command: 07 F1
+#
+# Notes for the operator:
+#   - Use Infrared -> Saved -> [Hold signal to edit] to
+#     rename or re-order; the Flipper reads these per
+#     record, not as a single script.
+#   - To add a new code, append a `name:` / `type:` /
+#     `protocol:` / `address:` / `command:` block separated
+#     by a `#` blank line.
+#
+# Validate with:  python ..\scripts\verify_flipper_files.py

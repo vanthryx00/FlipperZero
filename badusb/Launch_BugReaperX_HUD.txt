@@ -1,0 +1,25 @@
+REM ==============================================================
+REM  Launch BugReaperX HUD on Flipper Zero plug-in
+REM  Use ONLY against a Windows PC where BugReaperX is already
+REM  installed (default port 7777, default URL http://127.0.0.1:7777).
+REM  Authorized target is the operator's own machine. Do not use on
+REM  any system you do not own or have explicit permission to control.
+REM ==============================================================
+
+REM HID VID:PID spoofing line -- harmless but flipper devs recommend it.
+ID 1234:5678 Flipper Zero
+
+REM Give Windows time to enumerate the HID device before keypresses.
+DEFAULT_DELAY 100
+DELAY 800
+
+REM Win+R -> cmd /c start <URL>. The 'start' builtin returns immediately
+REM so the cmd window is closed by the OS after launching the browser.
+GUI r
+DELAY 500
+STRING cmd /c start http://127.0.0.1:7777
+ENTER
+
+REM If the URL ever needs to be parameterized, change port here:
+REM   STRING cmd /c start http://127.0.0.1:%FLIPPER_PORT%
+REM and pass -e FLIPPER_PORT=NNNN to qFlipper when flashing this file.

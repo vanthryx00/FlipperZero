@@ -1,0 +1,101 @@
+# FlipperZero hub manifest.
+# Pattern mirrors vanthryx/consolidation/MANIFEST.yaml so the same tooling works.
+#
+# Schema (see vanthryx/consolidation/MANIFEST.yaml for full reference).
+
+hub:
+  name: FlipperZero
+  path: C:\Users\bugre\FlipperZero
+  notes: Real Flipper Zero workspace. Had no .git before scaffolding.
+  cross_link:
+    parent_hub: vanthryx
+    parent_path: C:\Users\bugre\Desktop\vanthryx
+    parent_manifest: C:\Users\bugre\Desktop\vanthryx\consolidation\MANIFEST.yaml
+
+git:
+  initialized: true   # set true after running `git init C:\Users\bugre\FlipperZero`
+  remote: null        # set after `git remote add origin <url>` and `git push -u origin main`
+
+workspaces:
+  - source: C:\Users\bugre\FlipperZero\apps
+    kind: source
+    bytes_approx: null
+    touches: [flipper-apps]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\badusb
+    kind: source
+    bytes_approx: null
+    touches: [badusb-scripts]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\dolphin
+    kind: source
+    bytes_approx: null
+    touches: [dolphin-sources]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\ibutton
+    kind: source
+    bytes_approx: null
+    touches: [ibutton-protocol]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\infrared
+    kind: source
+    bytes_approx: null
+    touches: [ir-protocol]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\lfrfid
+    kind: source
+    bytes_approx: null
+    touches: [lf-rfid-protocol]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\nfc
+    kind: source
+    bytes_approx: null
+    touches: [nfc-protocol]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\subghz
+    kind: source
+    bytes_approx: null
+    touches: [subghz-protocol]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\u2f
+    kind: source
+    bytes_approx: null
+    touches: [u2f-protocol]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\scripts
+    kind: utility
+    bytes_approx: null
+    touches: [shell-scripts]
+    recommendation: KEEP
+  - source: C:\Users\bugre\FlipperZero\settings
+    kind: config
+    bytes_approx: null
+    touches: [flipper-settings]
+    recommendation: REVIEW
+  - source: C:\Users\bugre\FlipperZero\_vendor
+    kind: vendor
+    bytes_approx: null
+    touches: [third-party]
+    recommendation: REVIEW_VENDOR
+  - source: C:\Users\bugre\FlipperZero\flipper-sync.ps1
+    kind: legacy-script
+    bytes_approx: ~?
+    touches: [ps1]
+    duplicate_of: null
+    recommendation: ARCHIVE
+    notes: Legacy sync script. Replaced by autosync.ps1 — see CURATED.md.
+  - source: C:\Users\bugre\FlipperZero\flipper-sync.cmd
+    kind: legacy-script
+    bytes_approx: ~?
+    touches: [cmd]
+    duplicate_of: null
+    recommendation: ARCHIVE
+    notes: Same as above (.cmd wrapper).
+
+auto_sync:
+  enabled: false
+  script: C:\Users\bugre\FlipperZero\consolidation\autosync.ps1
+  task_name: flipperzero-sync
+  schedule: daily at 08:00
+  install_script: C:\Users\bugre\FlipperZero\consolidation\install-autosync.ps1
+  activate: "Open an elevated PowerShell and run install-autosync.ps1 once."

@@ -1,0 +1,588 @@
+1469 [APP] qFlipper version 1.3.3 commit bfce851d 2023-11-10T02:40:31
+1469 [APP] OS info: Windows 11 Version 25H2 11 10.0.26200 Qt 6.4.2
+1732 [DBG] Trying serial port FLIP_BLAEMETR at \\.\COM5
+1732 [DBG] Using  serial port FLIP_BLAEMETR at \\.\COM5
+1746 [RPC] Starting RPC session...
+1972 [RPC] RPC session started successfully.
+1972 [RPC] (1) System Protobuf Version START
+1985 [DBG] Detected protobuf version: 0.25
+1985 [RPC] (1) System Protobuf Version SUCCESS
+1986 [RPC] (2) Property Get START
+2110 [RPC] (2) Property Get SUCCESS
+2117 [RPC] (3) Storage Info @/ext START
+2136 [RPC] (3) Storage Info @/ext SUCCESS
+2136 [RPC] (4) Storage Stat @/ext/Manifest START
+2153 [RPC] (4) Storage Stat @/ext/Manifest SUCCESS
+2153 [RPC] (5) System Get DateTime START
+2156 [DBG] Flipper time skew is 7997 milliseconds
+2157 [RPC] (5) System Get DateTime SUCCESS
+2157 [RPC] (6) System Set DateTime START
+2169 [RPC] (6) System Set DateTime SUCCESS
+2169 [RPC] Stopping RPC session...
+2172 [RPC] Attempting to unload protobuf plugin...
+2172 [RPC] Unloaded protobuf plugin.
+2172 [RPC] RPC session stopped successfully.
+2172 [REG] Registering the device
+2172 [DEV] Version: 1.4.2-rc commit: 0670aab4 radio: 1.20.0
+2172 [BKD] Current device changed to "Blaemetr"
+2272 [RPC] Starting RPC session...
+2336 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+2387 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+2472 [RPC] RPC session started successfully.
+2472 [RPC] (1) Gui Start ScreenStream START
+2486 [RPC] (1) Gui Start ScreenStream SUCCESS
+6339 [RPC] (2) Gui Start VirtualDisplay START
+6353 [RPC] (2) Gui Start VirtualDisplay SUCCESS
+7950 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+7953 [DEV] Full Update @Blaemetr START
+7966 [UTL] Region Provisioning @Blaemetr START
+9285 [DBG] Detected region: "CA"
+9285 [DBG] Allowed bands: QList("F_US_CA_304", "F_US_CA_AU_NZ_433", "F_US_CA_AU_NZ_915")
+9286 [RPC] (3) Storage Write @/int/.region_data START
+9301 [RPC] (3) Storage Write @/int/.region_data SUCCESS
+9301 [UTL] Region Provisioning @Blaemetr SUCCESS
+9316 [UTL] Refresh Storage Info @Blaemetr START
+9316 [RPC] (4) Storage Info @/ext START
+9320 [RPC] (4) Storage Info @/ext SUCCESS
+9320 [RPC] (5) Storage Stat @/ext/Manifest START
+9334 [RPC] (5) Storage Stat @/ext/Manifest SUCCESS
+9336 [UTL] Refresh Storage Info @Blaemetr SUCCESS
+10413 [ZIP] Uncompressing file with size of 2195565 bytes...
+10466 [ZIP] Uncompression finished : No Error
+10487 [UTL] Create Path @/ext/update/f7-update-1.4.3 START
+10487 [RPC] (6) Storage Stat @/ext/update START
+10499 [RPC] (6) Storage Stat @/ext/update SUCCESS
+10499 [RPC] (7) Storage Stat @/ext/update/f7-update-1.4.3 START
+10516 [UTL] Create Path @/ext/update/f7-update-1.4.3 SUCCESS
+10516 [RPC] (7) Storage Stat @/ext/update/f7-update-1.4.3 SUCCESS
+10517 [UTL] Verify checksum of 6 items @Blaemetr START
+10517 [RPC] (8) Storage Md5Sum @/ext/update/f7-update-1.4.3/firmware.dfu START
+11988 [DBG] File is identical: "/ext/update/f7-update-1.4.3/firmware.dfu"
+11988 [RPC] (8) Storage Md5Sum @/ext/update/f7-update-1.4.3/firmware.dfu SUCCESS
+12000 [RPC] (9) Storage Md5Sum @/ext/update/f7-update-1.4.3/radio.bin START
+12250 [DBG] File is identical: "/ext/update/f7-update-1.4.3/radio.bin"
+12250 [RPC] (9) Storage Md5Sum @/ext/update/f7-update-1.4.3/radio.bin SUCCESS
+12250 [RPC] (10) Storage Md5Sum @/ext/update/f7-update-1.4.3/resources.ths START
+15288 [DBG] File is identical: "/ext/update/f7-update-1.4.3/resources.ths"
+15288 [RPC] (10) Storage Md5Sum @/ext/update/f7-update-1.4.3/resources.ths SUCCESS
+15299 [RPC] (11) Storage Md5Sum @/ext/update/f7-update-1.4.3/splash.bin START
+15317 [DBG] File is identical: "/ext/update/f7-update-1.4.3/splash.bin"
+15317 [RPC] (11) Storage Md5Sum @/ext/update/f7-update-1.4.3/splash.bin SUCCESS
+15318 [RPC] (12) Storage Md5Sum @/ext/update/f7-update-1.4.3/update.fuf START
+15333 [DBG] File is identical: "/ext/update/f7-update-1.4.3/update.fuf"
+15333 [RPC] (12) Storage Md5Sum @/ext/update/f7-update-1.4.3/update.fuf SUCCESS
+15334 [RPC] (13) Storage Md5Sum @/ext/update/f7-update-1.4.3/updater.bin START
+15583 [DBG] File is identical: "/ext/update/f7-update-1.4.3/updater.bin"
+15583 [RPC] (13) Storage Md5Sum @/ext/update/f7-update-1.4.3/updater.bin SUCCESS
+15584 [UTL] Verify checksum of 6 items @Blaemetr SUCCESS
+15584 [DBG] Update package has been already uploaded, skipping to update...
+15584 [UTL] Start Update @Blaemetr START
+15584 [RPC] (14) System Update @/ext/update/f7-update-1.4.3/update.fuf START
+16116 [RPC] (14) System Update @/ext/update/f7-update-1.4.3/update.fuf SUCCESS
+16117 [RPC] (15) System Reboot START
+16117 [RPC] (15) System Reboot SUCCESS
+16170 [REG] Device went offline: VID_0x483:PID_0x5740
+16171 [RPC] Serial connection was lost.
+16172 [RPC] Stopping RPC session...
+16174 [RPC] Attempting to unload protobuf plugin...
+16174 [RPC] Unloaded protobuf plugin.
+16174 [RPC] RPC session stopped successfully.
+106194 [REG] Detected new device: VID_0x483:PID_0x5740
+106251 [DBG] Trying serial port FLIP_BLAEMETR at \\.\COM5
+106251 [DBG] Using  serial port FLIP_BLAEMETR at \\.\COM5
+106251 [RPC] Starting RPC session...
+106442 [RPC] RPC session started successfully.
+106443 [RPC] (1) System Protobuf Version START
+106458 [DBG] Detected protobuf version: 0.25
+106479 [RPC] (1) System Protobuf Version SUCCESS
+106480 [RPC] (2) Property Get START
+106596 [RPC] (2) Property Get SUCCESS
+106597 [RPC] (3) Storage Info @/ext START
+106607 [RPC] (3) Storage Info @/ext SUCCESS
+106608 [RPC] (4) Storage Stat @/ext/Manifest START
+106612 [RPC] (4) Storage Stat @/ext/Manifest SUCCESS
+106612 [RPC] (5) System Get DateTime START
+106625 [DBG] Flipper time skew is -3472 milliseconds
+106625 [RPC] (5) System Get DateTime SUCCESS
+106625 [RPC] (6) System Set DateTime START
+106628 [RPC] (6) System Set DateTime SUCCESS
+106628 [RPC] Stopping RPC session...
+106632 [RPC] Attempting to unload protobuf plugin...
+106632 [RPC] Unloaded protobuf plugin.
+106632 [RPC] RPC session stopped successfully.
+106632 [REG] Device went back online
+106633 [DEV] Version: 1.4.3 commit: 8622f1a2 radio: 1.20.0
+106733 [RPC] Starting RPC session...
+106958 [RPC] RPC session started successfully.
+106961 [UTL] Start Update @Blaemetr SUCCESS
+106961 [DEV] Full Update @Blaemetr SUCCESS
+277129 [BKD] Finalized current operation
+277131 [RPC] (16) Gui Start ScreenStream START
+277161 [RPC] (16) Gui Start ScreenStream SUCCESS
+277162 [RPC] (17) Storage Info @/ext START
+277210 [RPC] (17) Storage Info @/ext SUCCESS
+368303 [RPC] (18) Storage Info @/ext START
+368338 [RPC] (18) Storage Info @/ext SUCCESS
+368369 [RPC] (19) Gui Stop ScreenStream START
+368374 [RPC] (19) Gui Stop ScreenStream SUCCESS
+370517 [RPC] (20) Storage List @/int START
+370546 [RPC] (20) Storage List @/int SUCCESS
+372747 [RPC] (21) Storage List @/int/SUBGHZ START
+372808 [RPC] (21) Storage List @/int/SUBGHZ SUCCESS
+378641 [RPC] (22) Storage List @/int/SUBGHZ START
+378666 [RPC] (22) Storage List @/int/SUBGHZ SUCCESS
+382900 [RPC] (23) Gui Start ScreenStream START
+382916 [RPC] (23) Gui Start ScreenStream SUCCESS
+390784 [RPC] (24) Storage List @/int/SUBGHZ START
+390808 [RPC] (24) Storage List @/int/SUBGHZ SUCCESS
+390813 [RPC] (25) Gui Stop ScreenStream START
+390830 [RPC] (25) Gui Stop ScreenStream SUCCESS
+394293 [RPC] (26) Storage List @/int/SUBGHZ START
+394310 [RPC] (26) Storage List @/int/SUBGHZ SUCCESS
+396581 [RPC] (27) Storage List @/int START
+396603 [RPC] (27) Storage List @/int SUCCESS
+397400 [RPC] (28) Storage Info @/ext START
+397429 [RPC] (28) Storage Info @/ext SUCCESS
+398380 [RPC] (29) Storage List @/ext START
+398565 [RPC] (29) Storage List @/ext SUCCESS
+601715 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+607591 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+663402 [RPC] Serial connection was lost.
+663403 [RPC] Stopping RPC session...
+663419 [RPC] Attempting to unload protobuf plugin...
+663419 [RPC] Unloaded protobuf plugin.
+663419 [RPC] RPC session stopped successfully.
+663441 [REG] Device disconnected: VID_0x483:PID_0x5740
+663442 [BKD] Last device was disconnected
+667847 [REG] Detected new device: VID_0x483:PID_0x5740
+667913 [DBG] Trying serial port FLIP_BLAEMETR at \\.\COM5
+667913 [DBG] Using  serial port FLIP_BLAEMETR at \\.\COM5
+667914 [RPC] Starting RPC session...
+668188 [RPC] RPC session started successfully.
+668188 [RPC] (1) System Protobuf Version START
+668203 [DBG] Detected protobuf version: 0.25
+668203 [RPC] (1) System Protobuf Version SUCCESS
+668203 [RPC] (2) Property Get START
+668354 [RPC] (2) Property Get SUCCESS
+668354 [RPC] (3) Storage Info @/ext START
+668369 [RPC] (3) Storage Info @/ext SUCCESS
+668369 [RPC] (4) Storage Stat @/ext/Manifest START
+668391 [RPC] (4) Storage Stat @/ext/Manifest SUCCESS
+668391 [RPC] (5) System Get DateTime START
+668407 [DBG] Flipper time skew is -1254 milliseconds
+668407 [RPC] (5) System Get DateTime SUCCESS
+668407 [RPC] (6) System Set DateTime START
+668423 [RPC] (6) System Set DateTime SUCCESS
+668423 [RPC] Stopping RPC session...
+668425 [RPC] Attempting to unload protobuf plugin...
+668425 [RPC] Unloaded protobuf plugin.
+668426 [RPC] RPC session stopped successfully.
+668426 [REG] Registering the device
+668426 [DEV] Version: 1.4.3 commit: 8622f1a2 radio: 1.20.0
+668426 [BKD] Current device changed to "Blaemetr"
+668536 [RPC] Starting RPC session...
+668790 [RPC] RPC session started successfully.
+668790 [RPC] (1) Gui Start ScreenStream START
+668803 [RPC] (1) Gui Start ScreenStream SUCCESS
+669768 [REG] Device disconnected: VID_0x483:PID_0x5740
+669768 [BKD] Last device was disconnected
+669772 [RPC] Serial connection was lost.
+685718 [REG] Detected new device: VID_0x483:PID_0xdf11
+685760 [DBG] Device reported transfer size: 1024
+685761 [DBG] Bytes uploaded: 32 100%
+685761 [DBG] Upload has finished.
+685761 [REG] Registering the device
+685761 [BKD] Current device changed to "Blaemetr"
+954746 [REG] Device disconnected: VID_0x483:PID_0xdf11
+954746 [BKD] Last device was disconnected
+958094 [REG] Detected new device: VID_0x483:PID_0x5740
+958169 [DBG] Trying serial port FLIP_BLAEMETR at \\.\COM5
+958169 [DBG] Using  serial port FLIP_BLAEMETR at \\.\COM5
+958169 [RPC] Starting RPC session...
+958396 [RPC] RPC session started successfully.
+958398 [RPC] (1) System Protobuf Version START
+958409 [DBG] Detected protobuf version: 0.25
+958411 [RPC] (1) System Protobuf Version SUCCESS
+958411 [RPC] (2) Property Get START
+958532 [RPC] (2) Property Get SUCCESS
+958532 [RPC] (3) Storage Info @/ext START
+958541 [RPC] (3) Storage Info @/ext SUCCESS
+958541 [RPC] (4) Storage Stat @/ext/Manifest START
+958545 [RPC] (4) Storage Stat @/ext/Manifest SUCCESS
+958545 [RPC] (5) System Get DateTime START
+958558 [DBG] Flipper time skew is -2405 milliseconds
+958558 [RPC] (5) System Get DateTime SUCCESS
+958558 [RPC] (6) System Set DateTime START
+958562 [RPC] (6) System Set DateTime SUCCESS
+958562 [RPC] Stopping RPC session...
+958565 [RPC] Attempting to unload protobuf plugin...
+958565 [RPC] Cannot unload protobuf plugin. This is probably OK.
+958565 [RPC] RPC session stopped successfully.
+958565 [REG] Registering the device
+958565 [DEV] Version: mntm-012 commit: e1784e74 radio: 1.20.0
+958565 [BKD] Current device changed to "Blaemetr"
+958666 [RPC] Starting RPC session...
+958874 [RPC] RPC session started successfully.
+958874 [RPC] (1) Gui Start ScreenStream START
+958895 [RPC] (1) Gui Start ScreenStream SUCCESS
+1201566 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+1207450 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+1800875 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+1806941 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+2401404 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+2407933 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+3001536 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+3007657 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+3023956 [RPC] Serial connection was lost.
+3023994 [REG] Device disconnected: VID_0x483:PID_0x5740
+3023994 [BKD] Last device was disconnected
+3023999 [RPC] Stopping RPC session...
+3024000 [RPC] Attempting to unload protobuf plugin...
+3024000 [RPC] Cannot unload protobuf plugin. This is probably OK.
+3024000 [RPC] RPC session stopped successfully.
+3040900 [REG] Detected new device: VID_0x483:PID_0xdf11
+3040940 [DBG] Device reported transfer size: 1024
+3040940 [DBG] Bytes uploaded: 32 100%
+3040940 [DBG] Upload has finished.
+3040940 [REG] Registering the device
+3040940 [BKD] Current device changed to "Blaemetr"
+3537541 [REG] Device disconnected: VID_0x483:PID_0xdf11
+3537542 [BKD] Last device was disconnected
+3608059 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+3613209 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+3803695 [REG] Detected new device: VID_0x483:PID_0xdf11
+3803740 [DBG] Device reported transfer size: 1024
+3803741 [DBG] Bytes uploaded: 32 100%
+3803741 [DBG] Upload has finished.
+3803741 [REG] Registering the device
+3803741 [BKD] Current device changed to "Blaemetr"
+3810985 [REG] Device disconnected: VID_0x483:PID_0xdf11
+3810985 [BKD] Last device was disconnected
+3814077 [REG] Detected new device: VID_0x483:PID_0x5740
+3814158 [DBG] Trying serial port FLIP_BLAEMETR at \\.\COM5
+3814158 [DBG] Using  serial port FLIP_BLAEMETR at \\.\COM5
+3814158 [RPC] Starting RPC session...
+3814368 [RPC] RPC session started successfully.
+3814369 [RPC] (1) System Protobuf Version START
+3814386 [DBG] Detected protobuf version: 0.25
+3814386 [RPC] (1) System Protobuf Version SUCCESS
+3814386 [RPC] (2) Property Get START
+3814533 [RPC] (2) Property Get SUCCESS
+3814534 [RPC] (3) Storage Info @/ext START
+3814538 [RPC] (3) Storage Info @/ext SUCCESS
+3814538 [RPC] (4) Storage Stat @/ext/Manifest START
+3814548 [RPC] (4) Storage Stat @/ext/Manifest SUCCESS
+3814548 [RPC] (5) System Get DateTime START
+3814551 [DBG] Flipper time skew is -3398 milliseconds
+3814551 [RPC] (5) System Get DateTime SUCCESS
+3814551 [RPC] (6) System Set DateTime START
+3814556 [RPC] (6) System Set DateTime SUCCESS
+3814556 [RPC] Stopping RPC session...
+3814559 [RPC] Attempting to unload protobuf plugin...
+3814559 [RPC] Cannot unload protobuf plugin. This is probably OK.
+3814559 [RPC] RPC session stopped successfully.
+3814559 [REG] Registering the device
+3814559 [DEV] Version: mntm-012 commit: e1784e74 radio: 1.20.0
+3814559 [BKD] Current device changed to "Blaemetr"
+3814691 [RPC] Starting RPC session...
+3814881 [RPC] RPC session started successfully.
+3814882 [RPC] (1) Gui Start ScreenStream START
+3814895 [RPC] (1) Gui Start ScreenStream SUCCESS
+4056704 [REG] Device disconnected: VID_0x483:PID_0x5740
+4056704 [BKD] Last device was disconnected
+4056710 [RPC] Serial connection was lost.
+4200707 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+4206837 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+4800635 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+4806803 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+5082611 [REG] Detected new device: VID_0x483:PID_0x5740
+5082687 [DBG] Trying serial port FLIP_BLAEMETR at \\.\COM5
+5082687 [DBG] Using  serial port FLIP_BLAEMETR at \\.\COM5
+5082687 [RPC] Starting RPC session...
+5082870 [RPC] RPC session started successfully.
+5082870 [RPC] (1) System Protobuf Version START
+5082888 [DBG] Detected protobuf version: 0.25
+5082888 [RPC] (1) System Protobuf Version SUCCESS
+5082889 [RPC] (2) Property Get START
+5082989 [RPC] (2) Property Get SUCCESS
+5082990 [RPC] (3) Storage Info @/ext START
+5082992 [RPC] (3) Storage Info @/ext SUCCESS
+5082992 [RPC] (4) Storage Stat @/ext/Manifest START
+5083001 [RPC] (4) Storage Stat @/ext/Manifest SUCCESS
+5083002 [RPC] (5) System Get DateTime START
+5083005 [DBG] Flipper time skew is -852 milliseconds
+5083005 [RPC] (5) System Get DateTime SUCCESS
+5083005 [RPC] (6) System Set DateTime START
+5083032 [RPC] (6) System Set DateTime SUCCESS
+5083032 [RPC] Stopping RPC session...
+5083036 [RPC] Attempting to unload protobuf plugin...
+5083036 [RPC] Cannot unload protobuf plugin. This is probably OK.
+5083036 [RPC] RPC session stopped successfully.
+5083036 [REG] Registering the device
+5083036 [DEV] Version: mntm-012 commit: e1784e74 radio: 1.20.0
+5083036 [BKD] Current device changed to "Blaemetr"
+5083136 [RPC] Starting RPC session...
+5083321 [RPC] RPC session started successfully.
+5083323 [RPC] (1) Gui Start ScreenStream START
+5083336 [RPC] (1) Gui Start ScreenStream SUCCESS
+5400268 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+5406770 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+6000297 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+6006826 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+6143783 [RPC] (2) Gui Start VirtualDisplay START
+6143796 [RPC] (2) Gui Start VirtualDisplay SUCCESS
+6144146 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+6144148 [DEV] Full Update @Blaemetr START
+6144161 [UTL] Region Provisioning @Blaemetr START
+6144579 [DBG] Detected region: "CA"
+6144579 [DBG] Allowed bands: QList("F_US_CA_304", "F_US_CA_AU_NZ_433", "F_US_CA_AU_NZ_915")
+6144579 [RPC] (3) Storage Write @/int/.region_data START
+6144595 [RPC] (3) Storage Write @/int/.region_data SUCCESS
+6144595 [UTL] Region Provisioning @Blaemetr SUCCESS
+6144603 [UTL] Refresh Storage Info @Blaemetr START
+6144604 [RPC] (4) Storage Info @/ext START
+6144607 [RPC] (4) Storage Info @/ext SUCCESS
+6144611 [RPC] (5) Storage Stat @/ext/Manifest START
+6144615 [RPC] (5) Storage Stat @/ext/Manifest SUCCESS
+6144616 [UTL] Refresh Storage Info @Blaemetr SUCCESS
+6147464 [ZIP] Uncompressing file with size of 2238433 bytes...
+6147511 [ZIP] Uncompression finished : No Error
+6147564 [UTL] Create Path @/ext/update/f7-update-dev-01122025-c9ab2b68 START
+6147564 [RPC] (6) Storage Stat @/ext/update START
+6147567 [RPC] (6) Storage Stat @/ext/update SUCCESS
+6147567 [RPC] (7) Storage Stat @/ext/update/f7-update-dev-01122025-c9ab2b68 START
+6147578 [UTL] Create Path @/ext/update/f7-update-dev-01122025-c9ab2b68 SUCCESS
+6147578 [RPC] (7) Storage Stat @/ext/update/f7-update-dev-01122025-c9ab2b68 SUCCESS
+6147578 [UTL] Verify checksum of 6 items @Blaemetr START
+6147579 [RPC] (8) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/firmware.dfu START
+6149052 [DBG] File is identical: "/ext/update/f7-update-dev-01122025-c9ab2b68/firmware.dfu"
+6149052 [RPC] (8) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/firmware.dfu SUCCESS
+6149061 [RPC] (9) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/radio.bin START
+6149278 [DBG] File is identical: "/ext/update/f7-update-dev-01122025-c9ab2b68/radio.bin"
+6149278 [RPC] (9) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/radio.bin SUCCESS
+6149278 [RPC] (10) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/resources.ths START
+6152232 [DBG] File is identical: "/ext/update/f7-update-dev-01122025-c9ab2b68/resources.ths"
+6152233 [RPC] (10) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/resources.ths SUCCESS
+6152233 [RPC] (11) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/splash.bin START
+6152245 [DBG] File is identical: "/ext/update/f7-update-dev-01122025-c9ab2b68/splash.bin"
+6152245 [RPC] (11) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/splash.bin SUCCESS
+6152245 [RPC] (12) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/update.fuf START
+6152261 [DBG] File is identical: "/ext/update/f7-update-dev-01122025-c9ab2b68/update.fuf"
+6152261 [RPC] (12) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/update.fuf SUCCESS
+6152261 [RPC] (13) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/updater.bin START
+6152495 [DBG] File is identical: "/ext/update/f7-update-dev-01122025-c9ab2b68/updater.bin"
+6152521 [RPC] (13) Storage Md5Sum @/ext/update/f7-update-dev-01122025-c9ab2b68/updater.bin SUCCESS
+6152522 [UTL] Verify checksum of 6 items @Blaemetr SUCCESS
+6152522 [DBG] Update package has been already uploaded, skipping to update...
+6152522 [UTL] Start Update @Blaemetr START
+6152522 [RPC] (14) System Update @/ext/update/f7-update-dev-01122025-c9ab2b68/update.fuf START
+6153044 [RPC] (14) System Update @/ext/update/f7-update-dev-01122025-c9ab2b68/update.fuf SUCCESS
+6153044 [RPC] (15) System Reboot START
+6153045 [RPC] (15) System Reboot SUCCESS
+6153062 [RPC] Serial connection was lost.
+6153095 [REG] Device went offline: VID_0x483:PID_0x5740
+6153097 [RPC] Stopping RPC session...
+6153098 [RPC] Attempting to unload protobuf plugin...
+6153098 [RPC] Cannot unload protobuf plugin. This is probably OK.
+6153098 [RPC] RPC session stopped successfully.
+6243527 [REG] Detected new device: VID_0x483:PID_0x5740
+6243621 [DBG] Trying serial port FLIP_BLAEMETR at \\.\COM5
+6243621 [DBG] Using  serial port FLIP_BLAEMETR at \\.\COM5
+6243621 [RPC] Starting RPC session...
+6243797 [RPC] RPC session started successfully.
+6243797 [RPC] (1) System Protobuf Version START
+6243824 [DBG] Detected protobuf version: 0.25
+6243839 [RPC] (1) System Protobuf Version SUCCESS
+6243839 [RPC] (2) Property Get START
+6243937 [RPC] (2) Property Get SUCCESS
+6243937 [RPC] (3) Storage Info @/ext START
+6243940 [RPC] (3) Storage Info @/ext SUCCESS
+6243940 [RPC] (4) Storage Stat @/ext/Manifest START
+6243944 [RPC] (4) Storage Stat @/ext/Manifest SUCCESS
+6243944 [RPC] (5) System Get DateTime START
+6243948 [DBG] Flipper time skew is -4793 milliseconds
+6243948 [RPC] (5) System Get DateTime SUCCESS
+6243953 [RPC] (6) System Set DateTime START
+6243956 [RPC] (6) System Set DateTime SUCCESS
+6243956 [RPC] Stopping RPC session...
+6243959 [RPC] Attempting to unload protobuf plugin...
+6243959 [RPC] Cannot unload protobuf plugin. This is probably OK.
+6243959 [RPC] RPC session stopped successfully.
+6243959 [REG] Device went back online
+6243960 [DEV] Version: unknown commit: c9ab2b68 radio: 1.20.0
+6244061 [RPC] Starting RPC session...
+6244272 [RPC] RPC session started successfully.
+6244274 [UTL] Start Update @Blaemetr SUCCESS
+6244274 [DEV] Full Update @Blaemetr SUCCESS
+6248004 [BKD] Finalized current operation
+6248004 [RPC] (16) Gui Start ScreenStream START
+6248019 [RPC] (16) Gui Start ScreenStream SUCCESS
+6248019 [RPC] (17) Storage Info @/ext START
+6248074 [RPC] (17) Storage Info @/ext SUCCESS
+6600324 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+6744187 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+7105770 [RPC] (18) Gui Send Input START
+7105773 [RPC] (18) Gui Send Input SUCCESS
+7105890 [RPC] (19) Gui Send Input START
+7105894 [RPC] (19) Gui Send Input SUCCESS
+7105902 [RPC] (20) Gui Send Input START
+7105918 [RPC] (20) Gui Send Input SUCCESS
+7106153 [RPC] (21) Gui Send Input START
+7106155 [RPC] (21) Gui Send Input SUCCESS
+7106219 [RPC] (22) Gui Send Input START
+7106224 [RPC] (22) Gui Send Input SUCCESS
+7106224 [RPC] (23) Gui Send Input START
+7106235 [RPC] (23) Gui Send Input SUCCESS
+7106503 [RPC] (24) Gui Send Input START
+7106505 [RPC] (24) Gui Send Input SUCCESS
+7106623 [RPC] (25) Gui Send Input START
+7106626 [RPC] (25) Gui Send Input SUCCESS
+7106637 [RPC] (26) Gui Send Input START
+7106652 [RPC] (26) Gui Send Input SUCCESS
+7107268 [RPC] (27) Gui Send Input START
+7107272 [RPC] (27) Gui Send Input SUCCESS
+7107390 [RPC] (28) Gui Send Input START
+7107393 [RPC] (28) Gui Send Input SUCCESS
+7107405 [RPC] (29) Gui Send Input START
+7107418 [RPC] (29) Gui Send Input SUCCESS
+7108636 [RPC] (30) Gui Send Input START
+7108639 [RPC] (30) Gui Send Input SUCCESS
+7108757 [RPC] (31) Gui Send Input START
+7108773 [RPC] (31) Gui Send Input SUCCESS
+7108773 [RPC] (32) Gui Send Input START
+7108785 [RPC] (32) Gui Send Input SUCCESS
+7108820 [RPC] (33) Gui Send Input START
+7108822 [RPC] (33) Gui Send Input SUCCESS
+7108902 [RPC] (34) Gui Send Input START
+7108919 [RPC] (34) Gui Send Input SUCCESS
+7108919 [RPC] (35) Gui Send Input START
+7108935 [RPC] (35) Gui Send Input SUCCESS
+7108969 [RPC] (36) Gui Send Input START
+7108973 [RPC] (36) Gui Send Input SUCCESS
+7109053 [RPC] (37) Gui Send Input START
+7109056 [RPC] (37) Gui Send Input SUCCESS
+7109056 [RPC] (38) Gui Send Input START
+7109068 [RPC] (38) Gui Send Input SUCCESS
+7109135 [RPC] (39) Gui Send Input START
+7109139 [RPC] (39) Gui Send Input SUCCESS
+7109202 [RPC] (40) Gui Send Input START
+7109206 [RPC] (40) Gui Send Input SUCCESS
+7109218 [RPC] (41) Gui Send Input START
+7109235 [RPC] (41) Gui Send Input SUCCESS
+7109339 [RPC] (42) Gui Send Input START
+7109343 [RPC] (42) Gui Send Input SUCCESS
+7109353 [RPC] (43) Gui Send Input START
+7109356 [RPC] (43) Gui Send Input SUCCESS
+7109357 [RPC] (44) Gui Send Input START
+7109369 [RPC] (44) Gui Send Input SUCCESS
+7110720 [RPC] (45) Gui Send Input START
+7110723 [RPC] (45) Gui Send Input SUCCESS
+7110903 [RPC] (46) Gui Send Input START
+7110907 [RPC] (46) Gui Send Input SUCCESS
+7110920 [RPC] (47) Gui Send Input START
+7110936 [RPC] (47) Gui Send Input SUCCESS
+7111851 [RPC] (48) Gui Send Input START
+7111854 [RPC] (48) Gui Send Input SUCCESS
+7111973 [RPC] (49) Gui Send Input START
+7111977 [RPC] (49) Gui Send Input SUCCESS
+7111985 [RPC] (50) Gui Send Input START
+7112001 [RPC] (50) Gui Send Input SUCCESS
+7112619 [RPC] (51) Gui Send Input START
+7112623 [RPC] (51) Gui Send Input SUCCESS
+7112723 [RPC] (52) Gui Send Input START
+7112739 [RPC] (52) Gui Send Input SUCCESS
+7112740 [RPC] (53) Gui Send Input START
+7112755 [RPC] (53) Gui Send Input SUCCESS
+7113555 [RPC] (54) Gui Send Input START
+7113568 [RPC] (54) Gui Send Input SUCCESS
+7113735 [RPC] (55) Gui Send Input START
+7113738 [RPC] (55) Gui Send Input SUCCESS
+7113753 [RPC] (56) Gui Send Input START
+7113769 [RPC] (56) Gui Send Input SUCCESS
+7114667 [RPC] (57) Gui Send Input START
+7114686 [RPC] (57) Gui Send Input SUCCESS
+7114752 [RPC] (58) Gui Send Input START
+7114755 [RPC] (58) Gui Send Input SUCCESS
+7114768 [RPC] (59) Gui Send Input START
+7114790 [RPC] (59) Gui Send Input SUCCESS
+7115951 [RPC] (60) Gui Send Input START
+7115955 [RPC] (60) Gui Send Input SUCCESS
+7116073 [RPC] (61) Gui Send Input START
+7116087 [RPC] (61) Gui Send Input SUCCESS
+7116087 [RPC] (62) Gui Send Input START
+7116101 [RPC] (62) Gui Send Input SUCCESS
+7117533 [RPC] (63) Gui Send Input START
+7117536 [RPC] (63) Gui Send Input SUCCESS
+7117617 [RPC] (64) Gui Send Input START
+7117621 [RPC] (64) Gui Send Input SUCCESS
+7117654 [RPC] (65) Gui Send Input START
+7117667 [RPC] (65) Gui Send Input SUCCESS
+7118372 [RPC] (66) Gui Send Input START
+7118385 [RPC] (66) Gui Send Input SUCCESS
+7118490 [RPC] (67) Gui Send Input START
+7118505 [RPC] (67) Gui Send Input SUCCESS
+7118505 [RPC] (68) Gui Send Input START
+7118517 [RPC] (68) Gui Send Input SUCCESS
+7118517 [RPC] (69) Gui Send Input START
+7118535 [RPC] (69) Gui Send Input SUCCESS
+7118617 [RPC] (70) Gui Send Input START
+7118621 [RPC] (70) Gui Send Input SUCCESS
+7118621 [RPC] (71) Gui Send Input START
+7118635 [RPC] (71) Gui Send Input SUCCESS
+7118706 [RPC] (72) Gui Send Input START
+7118719 [RPC] (72) Gui Send Input SUCCESS
+7118770 [RPC] (73) Gui Send Input START
+7118786 [RPC] (73) Gui Send Input SUCCESS
+7118786 [RPC] (74) Gui Send Input START
+7118819 [RPC] (74) Gui Send Input SUCCESS
+7118854 [RPC] (75) Gui Send Input START
+7118857 [RPC] (75) Gui Send Input SUCCESS
+7119186 [RPC] (76) Gui Send Input START
+7119189 [RPC] (76) Gui Send Input SUCCESS
+7119284 [RPC] (77) Gui Send Input START
+7119288 [RPC] (77) Gui Send Input SUCCESS
+7119322 [RPC] (78) Gui Send Input START
+7119334 [RPC] (78) Gui Send Input SUCCESS
+7119370 [RPC] (79) Gui Send Input START
+7119383 [RPC] (79) Gui Send Input SUCCESS
+7119384 [RPC] (80) Gui Send Input START
+7119400 [RPC] (80) Gui Send Input SUCCESS
+7119567 [RPC] (81) Gui Send Input START
+7119570 [RPC] (81) Gui Send Input SUCCESS
+7119634 [RPC] (82) Gui Send Input START
+7119637 [RPC] (82) Gui Send Input SUCCESS
+7119650 [RPC] (83) Gui Send Input START
+7119688 [RPC] (83) Gui Send Input SUCCESS
+7119968 [RPC] (84) Gui Send Input START
+7119983 [RPC] (84) Gui Send Input SUCCESS
+7120051 [RPC] (85) Gui Send Input START
+7120055 [RPC] (85) Gui Send Input SUCCESS
+7120067 [RPC] (86) Gui Send Input START
+7120089 [RPC] (86) Gui Send Input SUCCESS
+7120453 [RPC] (87) Gui Send Input START
+7120467 [RPC] (87) Gui Send Input SUCCESS
+7120517 [RPC] (88) Gui Send Input START
+7120522 [RPC] (88) Gui Send Input SUCCESS
+7120534 [RPC] (89) Gui Send Input START
+7120551 [RPC] (89) Gui Send Input SUCCESS
+7121185 [RPC] (90) Gui Send Input START
+7121201 [RPC] (90) Gui Send Input SUCCESS
+7121253 [RPC] (91) Gui Send Input START
+7121256 [RPC] (91) Gui Send Input SUCCESS
+7121266 [RPC] (92) Gui Send Input START
+7121283 [RPC] (92) Gui Send Input SUCCESS
+7123083 [RPC] (93) Gui Send Input START
+7123086 [RPC] (93) Gui Send Input SUCCESS
+7123169 [RPC] (94) Gui Send Input START
+7123189 [RPC] (94) Gui Send Input SUCCESS
+7123203 [RPC] (95) Gui Send Input START
+7123207 [RPC] (95) Gui Send Input SUCCESS
+7123769 [REG] Device disconnected: VID_0x483:PID_0x5740
+7123769 [BKD] Last device was disconnected
+7123773 [RPC] Serial connection was lost.
+7123832 [RPC] (96) Gui Send Input START
+7123832 [default] QIODevice::write (QObject): device not open
+7123832 [default] bool __cdecl QSerialPort::flush(void): device not open
+7123832 [RPC] Stopping RPC session...
+7123833 [SCR] Failed to send input event:  RPC session was stopped with operations still running
+7123833 [RPC] (96) Gui Send Input ERROR: RPC session was stopped with operations still running

@@ -1,0 +1,76 @@
+Filetype: Flipper NFC device
+Version: 4
+Device Type: Mifare Classic
+REM UID is exactly 4 bytes (Mifare Classic single-size). The chosen value
+REM 04 DE AD BE is arbitrary + safe -- no real card matches this.
+REM BCC (Block Check Character) is XOR(0x04, 0xDE, 0xAD, 0xBE) = 0xEE.
+UID: 04 DE AD BE
+ATQA: 04 44
+SAK: 08
+
+REM ==============================================================
+REM  Mifare_Classic_1k_Template.nfc
+REM
+REM  Purpose: structural Mifare Classic 1K tag for emulation testing.
+REM  The UID here is *deliberately* 04:DE:AD:BE:EF so it cannot
+REM  impersonate any real contactless card. Do NOT replace the UID
+REM  with a card you do not own -- you can lock yourself out of
+REM  door readers that perform whitelist matching.
+REM
+REM  ATQA + SAK match the real Mifare Classic 1K family
+REM  signatures, so the Flipper can enumerate this file as a
+REM  Mifare Classic card without complaint.
+REM
+REM  Block 0 is the manufacturer block (UID + BCC); we keep the
+REM  bytes straight (no BCC inconsistency) so the file parses
+REM  cleanly through the Flipper's NFC emulator.
+REM
+REM  Blocks 1-15 are sector 0 trailer + data, all zeroes -- the
+REM  factory default for an erased card. If you ever fill these
+REM  with real keys, treat them like credentials.
+REM ==============================================================
+
+Block 0: 04 DE AD BE C9 00 00 00 00 00 00 00 00 00 00
+Block 1: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 2: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 3: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 4: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 5: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 6: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 7: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 9: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 10: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 11: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 12: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 13: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 14: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 15: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+
+REM Sector 1-15 trailers: standard Mifare 1K access bits (FF FF FF FF FF FF = default key A & key B)
+REM Sector 1 trailer (Block 19) example -- the Flipper will accept zeros here.
+Block 16: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 17: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 18: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 19: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 20: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 21: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 22: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 23: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 24: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 25: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 26: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 27: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 28: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 29: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 30: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 31: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+
+REM Notes for the operator:
+REM   - Real Mifare 1K cards have a unique UID; this template uses
+REM     a fake 04:DE:AD:BE:EF. Use it to test that the Flipper
+REM     emulator + an NFC reader handshake works, NOT to bypass
+REM     access control on third-party systems.
+REM   - Validation: python ..\scripts\verify_flipper_files.py
+REM
+REM   Verify with:  python ..\scripts\verify_flipper_files.py

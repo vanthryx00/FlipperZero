@@ -1,0 +1,40 @@
+Filetype: Flipper RFID key
+Version: 1
+Frequency: 125000
+Bit Count: 64
+Key Type: EM4100
+Key: DE AD BE EF CA
+Data: DE AD BE EF CA
+
+REM ==============================================================
+REM  Audit_Trigger_Badge.rfid
+REM
+REM  Defensive-use RFID emulation. The UID `DE AD BE EF CA`
+REM  is a deliberately impossible pattern -- the byte sequence
+REM  `DE AD BE EF CA` cannot appear on a real-world EM4100 wafer,
+REM  so this file CANNOT impersonate any access-control badge.
+REM
+REM  Twist vs. a vanilla cloned credential: this file is meant
+REM  to be EMULATED by the Flipper at a desk-mounted RFID reader
+REM  (or near an attached USB HF/LF reader like ACR122U) to
+REM  trigger a known "audit mode" event. BugReaperX detects
+REM  the impossible UID and reports:
+REM    "Audit event: synthetic UID detected (DEADBEEF CA)"
+REM  which is useful for:
+REM    - Validating that an RFID-enabled workstation can detect
+REM      emulated input at all.
+REM    - Pen-test verification that the Flipper's RFID emulator
+REM      is wired correctly (probe + reader handshake).
+REM    - Smoke testing RFID log pipelines end-to-end without
+REM      touching anyone else's badges.
+REM
+REM  EM4100 protocol summary:
+REM    - 125 kHz carrier, ASK/OOK modulation.
+REM    - 64-bit Manchester-coded transmission:
+REM      10 sync + 8 version + 32 data (the 5 bytes above) +
+REM      14 parity + 4 stop = approximately 64 bits.
+REM    - The `Key:` field below encodes just the 32 data bits;
+REM      the Flipper rebuilds the rest on the wire.
+REM ==============================================================
+
+REM Verify with:  python ..\scripts\verify_flipper_files.py

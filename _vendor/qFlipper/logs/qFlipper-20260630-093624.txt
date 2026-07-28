@@ -1,0 +1,43 @@
+2015 [APP] qFlipper version 1.3.3 commit bfce851d 2023-11-10T02:40:31
+2015 [APP] OS info: Windows 11 Version 25H2 11 10.0.26200 Qt 6.4.2
+2426 [APP] Another instance was prevented from running
+2426 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+2428 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+600509 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+600576 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+1200540 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+1200544 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+1800824 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+1800890 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+2400416 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+2400553 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+3000421 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+3000521 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+3600748 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+3600998 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+4002414 [qt.qpa.mime] Retrying to obtain clipboard.
+4200596 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+4200655 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+22793250 [UPD] Failed to fetch update information: Network error: Host update.flipperzero.one not found
+22793250 [UPD] Failed to fetch update information: Network error: Host update.flipperzero.one not found
+23393138 [UPD] Failed to fetch update information: Network error: Host update.flipperzero.one not found
+23393140 [UPD] Failed to fetch update information: Network error: Host update.flipperzero.one not found
+23994189 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+23994192 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+24594031 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+24594126 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+25193898 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+25193908 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+25794204 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+25794205 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+26393553 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+26393680 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+26993495 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+26993528 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+27594533 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+27594592 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+28193659 [UPD] Fetched update information from https://update.flipperzero.one/qFlipper/directory.json
+28193791 [UPD] Fetched update information from https://update.flipperzero.one/firmware/directory.json
+40477734 [UPD] Failed to fetch update information: Network error: Host update.flipperzero.one not found
+40477866 [UPD] Failed to fetch update information: Network error: Host update.flipperzero.one not found
+40506551 [APP] qFlipper exited
