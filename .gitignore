@@ -2,3 +2,6 @@
 __pycache__/
 *.log
 .DS_Store
+
+# Autosync runtime status (kept local, not versioned)
+consolidation/autosync.health.json
