@@ -10,9 +10,21 @@
 [CmdletBinding()]
 param(
     [string]$RepoRoot  = "C:\Users\bugre\FlipperZero",
-    [string]$LogFile   = (Join-Path $PSScriptRoot "autosync.log"),
+    [string]$LogFile   = "",
     [int]    $MaxLogKB = 256
 )
+
+# Resolve log path at runtime; $PSScriptRoot can be empty when invoked
+# from non-standard shells (e.g. bash -> powershell.exe).
+if ([string]::IsNullOrWhiteSpace($LogFile)) {
+    $scriptPath = $MyInvocation.MyCommand.Path
+    if ($scriptPath) {
+        $scriptDir = Split-Path -Parent $scriptPath
+        $LogFile = Join-Path $scriptDir "autosync.log"
+    } else {
+        $LogFile = Join-Path (Join-Path $RepoRoot "consolidation") "autosync.log"
+    }
+}
 
 function Write-Log {
     param([string]$Msg)
