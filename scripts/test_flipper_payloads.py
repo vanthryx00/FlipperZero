@@ -64,10 +64,12 @@ PROTOCOL_RAW_RE = re.compile(r"^Protocol\s*:\s*RAW\s*$", re.IGNORECASE | re.MULT
 MAX_SANE_TIMING_US = 500_000
 
 NEC_FAMILY = {"nec", "necext", "nec42", "nec42ext"}
-# address:/command: byte widths we assert on for parsed IR records.
-BYTE_WIDTHS = {p: 4 for p in NEC_FAMILY}
-# Protocols stored as a single bit-packed hex value (no byte fields).
-PACKED_PROTOCOLS = {"rc5", "rc5ext", "rc6"}
+# Parsed-protocol address:/command: byte widths we assert on. Current
+# firmware stores EVERY parsed protocol's address:/command: as 4-byte
+# little-endian hex fields (RC5/RC6 included -- see the canonical IRDB
+# files, which use e.g. 'command: 0C 00 00 00' for RC5). The old
+# packed-single-value convention is not used on modern firmware.
+BYTE_WIDTHS = {p: 4 for p in (NEC_FAMILY | {"rc5", "rc5ext", "rc6"})}
 
 # EM4100 stores the 40-bit ID as 5 bytes (EM4100_DECODED_DATA_SIZE).
 EM4100_DATA_BYTES = 5
@@ -100,39 +102,69 @@ def check_subghz(text: str) -> tuple[list[str], list[str]]:
     if not PROTOCOL_RAW_RE.search(text):
         return fails, warns  # keyed protocols carry no timing stream
 
-    m = RAW_DATA_RE.search(text)
-    if not m or not m.group(1).strip():
+    # Multi-repeat captures (the community-standard Tesla doorbell files)
+    # carry one RAW_Data line per repeat -- validate EVERY line, not just
+    # the first, so a corrupt later repeat can't ship to the device.
+    matches = list(RAW_DATA_RE.finditer(text))
+    if not matches:
         fails.append("Protocol is RAW but the RAW_Data line is missing/empty")
         return fails, warns
-    tokens = m.group(1).split(",")
-    if any(t.strip() == "" for t in tokens):
-        fails.append("RAW_Data contains an empty token (double comma)")
-        return fails, warns
-    try:
-        vals = [int(t.strip()) for t in tokens]
-    except ValueError:
-        fails.append("RAW_Data contains a non-integer timing value")
-        return fails, warns
+    for ln, m in enumerate(matches, start=1):
+        prefix = f"RAW_Data line {ln}: " if len(matches) > 1 else ""
+        raw = m.group(1)
+        if not raw.strip():
+            fails.append(f"{prefix}RAW_Data line is missing/empty")
+            continue
+        # Official captures split timings on commas; many community
+        # captures (and the Flipper firmware itself) accept plain
+        # whitespace too. Accept both -- only detect truly empty tokens.
+        if "," in raw:
+            tokens = raw.split(",")
+            if any(t.strip() == "" for t in tokens):
+                fails.append(
+                    f"{prefix}RAW_Data contains an empty token (double comma)")
+                continue
+        else:
+            tokens = raw.split()
+        try:
+            vals = [int(t.strip()) for t in tokens]
+        except ValueError:
+            fails.append(f"{prefix}RAW_Data contains a non-integer timing value")
+            continue
 
-    if len(vals) < 2:
-        fails.append("RAW_Data must contain at least a pulse/gap pair")
-    if vals[0] <= 0:
-        fails.append(
-            f"first RAW_Data value must be positive (a pulse), got {vals[0]}")
-    if vals[-1] <= 0:
-        fails.append(
-            f"last RAW_Data value must be positive (ends on a pulse), got {vals[-1]}")
-    if len(vals) % 2 == 0:
-        fails.append("RAW_Data count must be odd (starts AND ends on a pulse)")
-    for i, v in enumerate(vals):
-        if v == 0:
-            fails.append(f"RAW_Data[{i}] is 0 -- zero-length pulse/gap is invalid")
-        if i and (v > 0) == (vals[i - 1] > 0):
+        if len(vals) < 2:
             fails.append(
-                f"RAW_Data[{i - 1}] and RAW_Data[{i}] don't alternate sign")
-        if abs(v) > MAX_SANE_TIMING_US:
+                f"{prefix}RAW_Data must contain at least a pulse/gap pair")
+        if vals[0] <= 0:
+            fails.append(
+                f"{prefix}first RAW_Data value must be positive (a pulse), "
+                f"got {vals[0]}")
+        # A trailing gap (negative last value) is tolerated: many real
+        # captures -- including the community-standard Tesla charge-port
+        # opener -- store each repeat line ending on the inter-frame pause,
+        # and the Flipper plays them fine. Warn instead of fail.
+        if vals[-1] <= 0:
             warns.append(
-                f"RAW_Data[{i}] = {v} us exceeds the 500 ms sanity bound")
+                f"{prefix}last RAW_Data value is negative (ends on a gap, not "
+                f"a pulse) -- the Flipper plays it, but the documented "
+                f"format ends on a pulse")
+        if len(vals) % 2 == 0:
+            warns.append(
+                f"{prefix}RAW_Data count is even (ends on a gap) -- same "
+                f"tolerance as the trailing-gap note above")
+        for i, v in enumerate(vals):
+            if v == 0:
+                fails.append(
+                    f"{prefix}RAW_Data[{i}] is 0 -- zero-length pulse/gap is "
+                    f"invalid")
+            if i and (v > 0) == (vals[i - 1] > 0):
+                fails.append(
+                    f"{prefix}RAW_Data[{i - 1}] and RAW_Data[{i}] don't "
+                    f"alternate sign")
+            if abs(v) > MAX_SANE_TIMING_US:
+                warns.append(
+                    f"{prefix}RAW_Data[{i}] = {v} us exceeds the 500 ms "
+                    f"sanity bound")
     return fails, warns
 
 
@@ -279,11 +311,6 @@ def check_ir(text: str) -> tuple[list[str], list[str]]:
             continue
         width = BYTE_WIDTHS.get(proto)
         for field, val in (("address", addr), ("command", cmd)):
-            if proto in PACKED_PROTOCOLS:
-                if not re.fullmatch(r"(0x)?[0-9A-Fa-f]+", val.strip()):
-                    fails.append(
-                        f"{label!r}: {field} {val!r} is not a bit-packed value")
-                continue
             toks = val.split()
             if width is not None and len(toks) != width:
                 fails.append(
@@ -294,7 +321,7 @@ def check_ir(text: str) -> tuple[list[str], list[str]]:
                     fails.append(
                         f"{label!r}: {field} contains non-hex byte {tok!r}")
                     break
-        if proto and width is None and proto not in PACKED_PROTOCOLS:
+        if proto and width is None:
             warns.append(
                 f"{label!r}: no width expectation registered for protocol "
                 f"{proto!r} -- verify by eye")
@@ -521,8 +548,11 @@ def discover(root: Path) -> list[Path]:
 
 def _summary(path: Path, text: str) -> str:
     if path.suffix.lower() == ".sub":
-        m = RAW_DATA_RE.search(text)
-        return f"{len(m.group(1).split(','))} timings" if m else ""
+        total = 0
+        for m in RAW_DATA_RE.finditer(text):
+            raw = m.group(1)
+            total += len(raw.split(",")) if "," in raw else len(raw.split())
+        return f"{total} timings" if total else ""
     if path.suffix.lower() == ".nfc":
         return f"{len(BLOCK_RE.findall(text))} blocks"
     if path.suffix.lower() == ".ir":
@@ -554,8 +584,11 @@ def selftest() -> list[str]:
 
     f, _ = check_subghz("Protocol: RAW\nRAW_Data: 320, 960, 320, 12000, 320")
     expect(f, "non-alternating RAW_Data not caught")
-    f, _ = check_subghz("Protocol: RAW\nRAW_Data: 320, -960, 320, -960")
-    expect(f, "even-count RAW_Data not caught")
+    _, w = check_subghz("Protocol: RAW\nRAW_Data: 320, -960, 320, -960")
+    expect(any("ends on a gap" in x for x in w),
+           "trailing-gap RAW_Data should warn (not fail)")
+    f, _ = check_subghz("Protocol: RAW\nRAW_Data: 320, -960, 320, 960, 320")
+    expect(f, "non-alternating RAW_Data not caught")
     f, _ = check_subghz("Protocol: RAW\nRAW_Data: 320, -abc, 320")
     expect(f, "non-integer RAW_Data not caught")
     f, _ = check_subghz("Protocol: RAW\nRAW_Data: 320, 0, 320")
@@ -566,6 +599,18 @@ def selftest() -> list[str]:
     expect(not f, "keyed .sub treated as RAW")
     f, _ = check_subghz("protocol: raw\nRAW_Data: 320, 960")
     expect(f, "lowercase 'protocol: raw' not detected as RAW")
+    # Space-separated RAW_Data is a valid community format (the Flipper
+    # loads comma- AND space-separated timing streams) -- must not fail.
+    space_sub = (
+        "Filetype: Flipper SubGhz RAW File\nVersion: 1\n"
+        "Frequency: 433920000\nPreset: FuriHalSubGhzPresetOok650Async\n"
+        "Protocol: RAW\nRAW_Data: 400 -400 400 -1200 400 -400 800"
+    )
+    f, _ = check_subghz(space_sub)
+    expect(not f, f"space-separated RAW_Data flagged: {f}")
+    f, _ = check_subghz(
+        "Protocol: RAW\nRAW_Data: 400 -400 400 -abc 400")
+    expect(f, "space-separated non-integer RAW_Data not caught")
 
     # ---- NFC ------------------------------------------------------------
     nfc_good = _good_nfc()
@@ -622,6 +667,16 @@ def selftest() -> list[str]:
     expect(f, "zero-length raw IR data not caught")
     f, _ = check_ir("name: Cap\ntype: raw\nprotocol: NEC")
     expect(f, "raw IR record without data: not caught")
+    # RC5/RC6 are stored as 4-byte hex fields on modern firmware (canonical
+    # IRDB format) -- must not be treated as bit-packed values.
+    ir_rc5 = (
+        "name: Grundig\ntype: parsed\nprotocol: RC5\naddress: 00 00 00 00\n"
+        "command: 0C 00 00 00"
+    )
+    f, _ = check_ir(ir_rc5)
+    expect(not f, f"RC5 4-byte record flagged: {f}")
+    f, _ = check_ir(ir_rc5.replace("command: 0C 00 00 00", "command: 0C"))
+    expect(f, "narrow RC5 command not caught")
 
     # ---- RFID -----------------------------------------------------------
     rfid_good = (

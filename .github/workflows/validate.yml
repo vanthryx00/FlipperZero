@@ -1,0 +1,33 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # Header validator: missing/legacy keys fail the build before
+      # anything broken can reach a device.
+      - name: Header validation (verify_flipper_files.py)
+        run: python scripts/verify_flipper_files.py
+
+      # Prove the checkers themselves are trustworthy, then run them.
+      - name: Data-test self-check (--selftest)
+        run: python scripts/test_flipper_payloads.py --selftest
+
+      # Data-level tests: RAW_Data timings, NFC checksums, IR widths,
+      # EM4100 parity, BadUSB structure.
+      - name: Data tests (test_flipper_payloads.py)
+        run: python scripts/test_flipper_payloads.py

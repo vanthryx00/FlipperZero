@@ -1,0 +1,24 @@
+Filetype: IR signals file
+Version: 1
+# ==============================================================
+#  Nikon camera IR trigger
+#
+#  Real capture from the Lucaslhm/Flipper-IRDB project
+#  (github.com/Lucaslhm/Flipper-IRDB) -- original file:
+#  Cameras/Nikon/Nikon.ir.
+#
+#  License: CC0 1.0 (public domain)
+#  RAW shutter-trigger capture for Nikon cameras with an IR remote
+#  port (raw record: Take_photo at 38 kHz).
+#  Set the camera to IR-remote mode and point the Flipper at the
+#  receiver; verify on your own camera.
+# ==============================================================
+#
+#
+# Nikon camera
+#
+name: Take_photo
+type: raw
+frequency: 38000
+duty_cycle: 0.330000
+data: 1989 27513 408 1569 386 3503 408 62013 1985 27517 404 1573 382 3506 405

@@ -1,0 +1,20 @@
+REM ==============================================================
+REM  RickRoll in Windows CMD (harmless fun)
+REM  Real BadUSB script from the UberGuidoZ/Flipper project (GPL-3.0).
+REM  Original file: BadUSB/RickRoll_CMD_Win.txt.
+REM  Harmless: opens ascii.live/rick in a maximized CMD window.
+REM  Author: Nando Kools | NanKooDev.
+REM ==============================================================
+REM
+
+REM Title: Rick Roll Windows CMD
+REM Author: Nando Kools | NanKooDev
+REM Description: RickRoll in Windows Command Prompt
+REM Target:	Windows
+REM
+GUI r
+DELAY 1000
+STRING curl http://ascii.live/rick
+ENTER
+DELAY 750
+ALT ENTER

@@ -49,15 +49,20 @@ REQUIRED_IBUTTON   = ("filetype", "version")
 # mf_classic.c refuses to load a Mifare Classic file without these).
 NFC_MIFARE_KEYS = ("mifare classic type", "data format version")
 # IR protocols whose address:/command: are stored as 4-byte raw values on
-# current firmware; the old 2-byte form no longer loads.
-IR_4BYTE_PROTOCOLS = frozenset({"nec", "necext", "nec42", "nec42ext"})
+# current firmware; the old 2-byte form no longer loads. RC5/RC6 are also
+# stored as 4-byte hex fields on modern firmware (see the canonical IRDB,
+# e.g. RC5 'command: 0C 00 00 00').
+IR_4BYTE_PROTOCOLS = frozenset({"nec", "necext", "nec42", "nec42ext",
+                                "rc5", "rc5ext", "rc6"})
 
 BADUSB_KNOWN_COMMANDS = {
     "ID", "REM", "DEFAULT_DELAY", "DEFAULT_STRING_DELAY", "DELAY", "STRING_DELAY",
     "STRING", "STRINGLN", "REPEAT",
     "CTRL", "SHIFT", "ALT", "GUI", "WINDOWS",
     "ENTER", "ESCAPE", "TAB", "SPACE", "BACKSPACE", "DELETE",
-    "UP", "DOWN", "LEFT", "RIGHT", "HOME", "END", "INSERT", "PAGE_UP", "PAGE_DOWN",
+    "UP", "DOWN", "LEFT", "RIGHT",
+    "UPARROW", "DOWNARROW", "LEFTARROW", "RIGHTARROW",
+    "HOME", "END", "INSERT", "PAGE_UP", "PAGE_DOWN",
     "CAPSLOCK", "NUMLOCK", "SCROLLLOCK",
     "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
     "VOLUME_UP", "VOLUME_DOWN", "MUTE", "PLAY_PAUSE", "MEDIA_NEXT", "MEDIA_PREV",
@@ -157,7 +162,8 @@ def validate_nfc(text: str) -> tuple[list[str], list[str]]:
     dtype = kv.get("device type", "")
     allowed = {
         "ISO14443-3A", "ISO14443-3B", "ISO14443-4A",
-        "NTAG/Ultralight", "Mifare Classic", "Mifare DESFire",
+        "NTAG/Ultralight", "NTAG213", "NTAG215", "NTAG216",
+        "Mifare Classic", "Mifare DESFire",
     }
     if dtype and dtype not in allowed:
         notes.append(f"Unrecognized Device Type {dtype!r} -- verify against Flipper docs")
