@@ -17,12 +17,19 @@ but a broken body fails here:
   infrared/*.ir  Parsed records: address:/command: are hex byte fields with
                  the protocol-correct width (NEC family = 4 bytes each).
   lfrfid/*.rfid  EM4100 keys: exactly 5 bytes (the 40-bit ID), hex bytes,
-                 and a sane carrier frequency. EM4100 row/column parity is
-                 rebuilt on the wire by the Flipper, so it is not stored in
-                 the file -- the file check is structural.
+                 and a sane carrier frequency. The full 64-bit on-wire
+                 frame (9-bit header, 10x nibble+row-parity groups, column
+                 parity, stop bit) is rebuilt from the 5 stored bytes and
+                 verified against the EM4100 spec. Parity itself is NOT
+                 stored in the file -- the Flipper recomputes it on the
+                 wire -- so this check proves the ID encodes a
+                 structurally valid frame.
   badusb/*.txt   DuckyScript: ID VID:PID line format, integer arguments for
-                 DELAY/REPEAT-style commands, non-empty STRING arguments,
-                 and typos in command tokens.
+                 DELAY/REPEAT-style commands, non-empty STRING/ALTSTRING
+                 arguments, integer ALTCHAR alt-codes, script-structure
+                 warnings (missing ID first line, bare modifiers, REPEAT
+                 with nothing to repeat or a zero count, args to
+                 WAIT_FOR_BUTTON_PRESS), and typos in command tokens.
 
 It is cheap enough to run before every flipper-sync and in CI.
 
@@ -65,11 +72,22 @@ PACKED_PROTOCOLS = {"rc5", "rc5ext", "rc6"}
 # EM4100 stores the 40-bit ID as 5 bytes (EM4100_DECODED_DATA_SIZE).
 EM4100_DATA_BYTES = 5
 EM4100_CARRIER_HZ = 125_000
+# EM4100 on-wire frame layout (standard spec; matches the Flipper's
+# encoder in lib/lfrfid/protocols/protocol_em4100.c):
+#   9 bits     header, all '1'
+#   10 groups  4 data bits (MSB first) + 1 even row-parity bit  -> 50 bits
+#   4 bits     even column parity, one per data-bit position
+#   1 bit      stop, '0'
+#   total      64 bits
+EM4100_FRAME_BITS = 64
+EM4100_HEADER_BITS = 9
+EM4100_GROUPS = 10
 
 # DuckyScript commands whose argument must be a non-negative integer.
+# (REPEAT is handled by its own branch -- it also needs ordering/zero
+# checks -- so it is not listed here.)
 BADUSB_INT_ARG_CMDS = {
     "DEFAULT_DELAY", "DEFAULT_STRING_DELAY", "DELAY", "STRING_DELAY",
-    "REPEAT",
 }
 # DuckyScript commands that require a text argument.
 BADUSB_TEXT_CMDS = {"STRING", "STRINGLN"}
@@ -209,8 +227,38 @@ def check_nfc(text: str) -> tuple[list[str], list[str]]:
     return fails, warns
 
 
+def _check_raw_ir_data(rec: dict[str, str], label: str,
+                       fails: list[str]) -> None:
+    """Sanity-check a raw IR record's `data:` timing line.
+
+    The Flipper stores raw IR as space-separated POSITIVE pulse/pause
+    timings in microseconds (e.g. '320 960 320 960'). This only catches
+    malformed data (missing/empty line, non-integer, non-positive or
+    zero values) -- it cannot verify the signal matches a real device.
+    """
+    data = rec.get("data")
+    if data is None or not data.strip():
+        fails.append(f"{label!r}: raw record missing 'data:' timing line")
+        return
+    toks = data.split()
+    try:
+        vals = [int(t) for t in toks]
+    except ValueError:
+        fails.append(f"{label!r}: raw data contains a non-integer value")
+        return
+    if len(vals) < 2:
+        fails.append(f"{label!r}: raw data needs at least a pulse/pause pair")
+    for v in vals:
+        if v <= 0:
+            fails.append(
+                f"{label!r}: raw data values must be positive integers "
+                f"(pulse/pause in us), got {v}")
+            break
+
+
 def check_ir(text: str) -> tuple[list[str], list[str]]:
-    """Validate address:/command: field widths of parsed IR records."""
+    """Validate address:/command: field widths of parsed IR records and
+    sanity-check the timing line of raw IR records."""
     fails: list[str] = []
     warns: list[str] = []
     records = parse_ir_records(text)
@@ -219,7 +267,10 @@ def check_ir(text: str) -> tuple[list[str], list[str]]:
 
     for i, rec in enumerate(records):
         label = rec.get("name") or f"record {i + 1}"
-        if (rec.get("type") or "").lower() != "parsed":
+        rtype = (rec.get("type") or "").lower()
+        if rtype != "parsed":
+            if rtype == "raw":
+                _check_raw_ir_data(rec, label, fails)
             continue  # raw records store a timing array, not byte fields
         proto = (rec.get("protocol") or "").lower()
         addr, cmd = rec.get("address"), rec.get("command")
@@ -250,8 +301,61 @@ def check_ir(text: str) -> tuple[list[str], list[str]]:
     return fails, warns
 
 
+def build_em4100_frame(uid: bytes) -> str:
+    """Build the 64-bit EM4100 on-wire frame for a 40-bit ID (5 bytes).
+
+    Layout: 9x '1' header, 10 groups of (4 data bits + 1 even row-parity
+    bit), 4 even column-parity bits (one per bit position, MSB first),
+    then a '0' stop bit.
+    """
+    bits = "1" * EM4100_HEADER_BITS
+    nibbles: list[int] = []
+    for byte in uid:
+        nibbles.append((byte >> 4) & 0xF)
+        nibbles.append(byte & 0xF)
+    for nib in nibbles:
+        data = f"{nib:04b}"
+        bits += data + ("0" if data.count("1") % 2 == 0 else "1")
+    for col in range(4):
+        parity = 0
+        for nib in nibbles:
+            parity ^= (nib >> (3 - col)) & 1
+        bits += "0" if parity == 0 else "1"
+    return bits + "0"
+
+
+def verify_em4100_frame(bits: str) -> list[str]:
+    """Validate a 64-bit EM4100 frame; return a list of spec violations.
+
+    Checks the header, all 10 row-parity bits, the 4 column-parity bits
+    and the stop bit. An empty list means the frame is structurally valid.
+    """
+    fails: list[str] = []
+    if len(bits) != EM4100_FRAME_BITS:
+        return [f"frame is {len(bits)} bits, expected {EM4100_FRAME_BITS}"]
+    if bits[:EM4100_HEADER_BITS] != "1" * EM4100_HEADER_BITS:
+        fails.append("frame must start with 9 '1' header bits")
+    for g in range(EM4100_GROUPS):
+        start = EM4100_HEADER_BITS + g * 5
+        data, par = bits[start:start + 4], bits[start + 4]
+        if par != ("0" if data.count("1") % 2 == 0 else "1"):
+            fails.append(f"row {g} parity bit {par!r} is wrong")
+    for col in range(4):
+        col_bits = "".join(
+            bits[EM4100_HEADER_BITS + g * 5 + col]
+            for g in range(EM4100_GROUPS))
+        par = bits[EM4100_HEADER_BITS + EM4100_GROUPS * 5 + col]
+        if (col_bits.count("1") % 2) != (1 if par == "1" else 0):
+            fails.append(f"column {col} parity bit {par!r} is wrong")
+    if bits[-1] != "0":
+        fails.append("frame must end with a '0' stop bit")
+    return fails
+
+
 def check_rfid(text: str) -> tuple[list[str], list[str]]:
-    """Validate the data field of an LF RFID key file."""
+    """Validate the data field of an LF RFID key file. For EM4100 the
+    64-bit on-wire frame (header, row/column parity, stop bit) is rebuilt
+    from the 5 stored ID bytes and verified against the spec."""
     fails: list[str] = []
     warns: list[str] = []
     kv = parse_kv(text)
@@ -283,13 +387,26 @@ def check_rfid(text: str) -> tuple[list[str], list[str]]:
             fails.append(
                 f"EM4100: expected {EM4100_DATA_BYTES} bytes (40-bit ID), "
                 f"got {len(data_toks)}")
+        elif all(HEX2_RE.fullmatch(t) for t in data_toks):
+            # Only reachable with exactly EM4100_DATA_BYTES valid hex
+            # bytes. Parity is derived from the ID, so any 5 bytes encode a
+            # valid frame; this proves the stored ID maps to a spec-correct
+            # 64-bit EM4100 frame (header, row/column parity, stop bit).
+            # The selftest exercises the builder/verifier against
+            # bit-flipped frames so the check itself is trustworthy.
+            frame = build_em4100_frame(
+                bytes(int(t, 16) for t in data_toks))
+            for bad in verify_em4100_frame(frame):
+                fails.append(f"EM4100: {bad}")
         freq = kv.get("frequency", "")
         if freq.lstrip("-").isdigit() and int(freq) != EM4100_CARRIER_HZ:
             warns.append(
                 f"EM4100: Frequency {freq} Hz != typical {EM4100_CARRIER_HZ} Hz")
         if kv.get("bit count") not in (None, "64"):
             warns.append(
-                f"EM4100: Bit Count is {kv.get('bit count')}, expected 64")
+                f"EM4100: Bit Count is {kv.get('bit count')}, expected 64 "
+                f"(the on-wire frame is {EM4100_FRAME_BITS} bits for a "
+                f"{EM4100_DATA_BYTES}-byte ID)")
     else:
         warns.append(
             f"no byte-count expectation registered for Key type {key_type!r}")
@@ -297,9 +414,11 @@ def check_rfid(text: str) -> tuple[list[str], list[str]]:
 
 
 def check_badusb(text: str) -> tuple[list[str], list[str]]:
-    """Validate DuckyScript payload structure (ID line, args, typos)."""
+    """Validate DuckyScript payload structure (ID line, args, ordering,
+    typos)."""
     fails: list[str] = []
     warns: list[str] = []
+    first_command_seen = False
     for i, raw in enumerate(text.splitlines(), start=1):
         s = raw.strip()
         if not s or s.startswith("REM") or s.startswith("#"):
@@ -315,6 +434,16 @@ def check_badusb(text: str) -> tuple[list[str], list[str]]:
                 fails.append(
                     f"L{i}: ID line must be 'ID VVVV:PPPP' (4 hex digits "
                     f"each), got: {s!r}")
+        elif cmd == "REPEAT":
+            if not first_command_seen:
+                warns.append(
+                    f"L{i}: REPEAT before any command -- nothing to repeat")
+            elif not arg.isdigit():
+                fails.append(
+                    f"L{i}: REPEAT expects a non-negative integer count, "
+                    f"got {arg!r}")
+            elif int(arg) == 0:
+                warns.append(f"L{i}: REPEAT 0 is a no-op")
         elif cmd in BADUSB_INT_ARG_CMDS:
             if not arg.isdigit():
                 fails.append(
@@ -323,6 +452,27 @@ def check_badusb(text: str) -> tuple[list[str], list[str]]:
         elif cmd in BADUSB_TEXT_CMDS:
             if not arg:
                 fails.append(f"L{i}: {cmd} requires a text argument")
+        elif cmd == "ALTSTRING":
+            if not arg:
+                fails.append(f"L{i}: ALTSTRING requires a text argument")
+        elif cmd == "ALTCHAR":
+            if not arg.isdigit():
+                fails.append(
+                    f"L{i}: ALTCHAR expects an integer Windows alt-code, "
+                    f"got {arg!r}")
+        elif cmd in ("GUI", "WINDOWS"):
+            if not arg:
+                warns.append(
+                    f"L{i}: {cmd} with no key -- NOP (e.g. 'GUI r' opens Run)")
+        elif cmd in ("CTRL", "SHIFT", "ALT"):
+            if not arg:
+                warns.append(
+                    f"L{i}: {cmd} with no key -- NOP (modifier alone)")
+        elif cmd == "WAIT_FOR_BUTTON_PRESS":
+            if arg:
+                warns.append(
+                    f"L{i}: WAIT_FOR_BUTTON_PRESS takes no argument "
+                    f"(ignores {arg!r})")
         elif "-" in cmd:
             if not all(t in BADUSB_KNOWN_COMMANDS for t in cmd.split("-")):
                 warns.append(f"L{i}: unrecognized modifier chain {cmd!r}")
@@ -330,6 +480,15 @@ def check_badusb(text: str) -> tuple[list[str], list[str]]:
             warns.append(
                 f"L{i}: unrecognized command {cmd!r} (typo -> silent NOP "
                 f"on device)")
+
+        if not first_command_seen:
+            # 'ID' first is the recommended keyboard-layout hint;
+            # DEFAULT_DELAY is also accepted by the header validator.
+            if cmd not in ("ID", "DEFAULT_DELAY"):
+                warns.append(
+                    f"L{i}: first command is {cmd!r} -- an 'ID VVVV:PPPP' "
+                    f"first line is recommended (keyboard-layout hint)")
+            first_command_seen = True
     return fails, warns
 
 
@@ -453,8 +612,16 @@ def selftest() -> list[str]:
     expect(f, "non-hex IR byte not caught")
     f, _ = check_ir("name: X\ntype: parsed\nprotocol: NEC\naddress: 04 00 00 00")
     expect(f, "missing IR command not caught")
-    f, _ = check_ir("name: Cap\ntype: raw\nprotocol: NEC\nraw: 320 -960 320")
-    expect(not f, "raw IR record validated as parsed")
+    f, _ = check_ir("name: Cap\ntype: raw\nprotocol: NEC\ndata: 320 960 320 960")
+    expect(not f, "good raw IR record flagged")
+    f, _ = check_ir("name: Cap\ntype: raw\nprotocol: NEC\ndata: 320 abc 960")
+    expect(f, "non-integer raw IR data not caught")
+    f, _ = check_ir("name: Cap\ntype: raw\nprotocol: NEC\ndata: 320 -960 320")
+    expect(f, "negative raw IR data not caught")
+    f, _ = check_ir("name: Cap\ntype: raw\nprotocol: NEC\ndata: 320 0 960")
+    expect(f, "zero-length raw IR data not caught")
+    f, _ = check_ir("name: Cap\ntype: raw\nprotocol: NEC")
+    expect(f, "raw IR record without data: not caught")
 
     # ---- RFID -----------------------------------------------------------
     rfid_good = (
@@ -481,6 +648,46 @@ def selftest() -> list[str]:
         "Key: DE AD BE EF CA\nData: 11 22 33 44 55"))
     expect(any("disagree" in x for x in w), "Key/Data mismatch not warned")
 
+    # EM4100 on-wire frame rebuild + parity (build/verify against spec).
+    frame = build_em4100_frame(bytes([0xDE, 0xAD, 0xBE, 0xEF, 0xCA]))
+    expect(len(frame) == EM4100_FRAME_BITS,
+           f"EM4100 frame length {len(frame)} != 64")
+    expect(not verify_em4100_frame(frame),
+           f"valid EM4100 frame flagged: {verify_em4100_frame(frame)}")
+    expect(frame[:9] == "111111111", "EM4100 header bits wrong")
+    expect(frame[-1] == "0", "EM4100 stop bit wrong")
+    expect(not verify_em4100_frame(build_em4100_frame(bytes([0x00] * 5))),
+           "all-zero EM4100 ID should still encode a valid frame")
+    flipped = list(frame)
+    flipped[9 + 2] = "1" if flipped[9 + 2] == "0" else "0"  # data bit
+    violations = verify_em4100_frame("".join(flipped))
+    expect(violations, "flipped data bit not caught (row parity)")
+    expect(any("row 0" in v for v in violations),
+           f"flipped data bit should flag row 0 parity: {violations}")
+    flipped = list(frame)
+    flipped[9 + 4] = "1" if flipped[9 + 4] == "0" else "0"  # row parity bit
+    violations = verify_em4100_frame("".join(flipped))
+    expect(any("row 0" in v for v in violations),
+           "flipped row parity not caught")
+    flipped = list(frame)
+    flipped[59] = "1" if flipped[59] == "0" else "0"  # column parity 0
+    violations = verify_em4100_frame("".join(flipped))
+    expect(any("column 0" in v for v in violations),
+           "flipped column parity not caught")
+    flipped = list(frame)
+    flipped[5] = "0"  # header bit
+    violations = verify_em4100_frame("".join(flipped))
+    expect(any("header" in v for v in violations),
+           "flipped header bit not caught")
+    flipped = list(frame)
+    flipped[63] = "1"  # stop bit
+    violations = verify_em4100_frame("".join(flipped))
+    expect(any("stop" in v for v in violations),
+           "flipped stop bit not caught")
+    _, w = check_rfid(rfid_good.replace("Bit Count: 64", "Bit Count: 40"))
+    expect(any("Bit Count" in x for x in w),
+           "non-64 Bit Count should warn for EM4100")
+
     # ---- BadUSB ---------------------------------------------------------
     badusb_good = (
         "REM comment\nID 046d:c31c\nDEFAULT_DELAY 100\nDELAY 800\n"
@@ -501,6 +708,38 @@ def selftest() -> list[str]:
            "typo'd command not warned")
     f, _ = check_badusb("ID 046d:c31c\nCTRL-ALT-DEL")
     expect(not f, "modifier chain CTRL-ALT-DEL flagged")
+
+    # BadUSB script structure (ordering, modifiers, alt-code commands).
+    f, _ = check_badusb("REM hi\nID 046d:c31c\nDELAY 100")
+    expect(not f, "ID-first payload flagged")
+    _, w = check_badusb("DELAY 100\nID 046d:c31c")
+    expect(any("first command" in x.lower() for x in w),
+           "missing ID-first recommendation not warned")
+    _, w = check_badusb("DEFAULT_DELAY 100\nID 046d:c31c")
+    expect(not any("first command" in x.lower() for x in w),
+           "DEFAULT_DELAY first should not warn")
+    _, w = check_badusb("ID 046d:c31c\nREPEAT 0")
+    expect(any("no-op" in x.lower() for x in w), "REPEAT 0 not warned")
+    _, w = check_badusb("REPEAT 2")
+    expect(any("nothing to repeat" in x.lower() for x in w),
+           "REPEAT-first not warned")
+    f, _ = check_badusb("ID 046d:c31c\nALTSTRING")
+    expect(f, "empty ALTSTRING not caught")
+    f, _ = check_badusb("ID 046d:c31c\nALTCHAR abc")
+    expect(f, "non-integer ALTCHAR not caught")
+    f, _ = check_badusb("ID 046d:c31c\nALTSTRING hello")
+    expect(not f, "ALTSTRING with text flagged")
+    f, _ = check_badusb("ID 046d:c31c\nALTCHAR 65")
+    expect(not f, "ALTCHAR with integer flagged")
+    _, w = check_badusb("ID 046d:c31c\nGUI")
+    expect(any("no key" in x for x in w), "bare GUI not warned")
+    _, w = check_badusb("ID 046d:c31c\nCTRL")
+    expect(any("no key" in x for x in w), "bare CTRL not warned")
+    _, w = check_badusb("ID 046d:c31c\nWAIT_FOR_BUTTON_PRESS hello")
+    expect(any("takes no argument" in x for x in w),
+           "WAIT_FOR_BUTTON_PRESS with arg not warned")
+    f, _ = check_badusb("ID 046d:c31c\nWINDOWS l")
+    expect(not f, "WINDOWS with key flagged")
     return bad
 
 

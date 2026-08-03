@@ -3,7 +3,11 @@
     Sync everything in %USERPROFILE%\FlipperZero onto a plugged-in Flipper Zero.
 
 .DESCRIPTION
-    Scans every removable drive (C-H) for the canonical Flipper SD-card
+    Runs the two workspace validators first -- scripts\verify_flipper_files.py
+    (header check) then scripts\test_flipper_payloads.py (data tests). If
+    either fails, the sync aborts (exit code 3) without touching the device.
+
+    Then scans every removable drive (C-H) for the canonical Flipper SD-card
     marker pair (apps\ AND subghz\ as folders). When found, copies the
     workspace contents onto the device's SD card root. Skips PC-only
     content: _vendor\ (local qFlipper cache), scripts\ and
@@ -12,6 +16,10 @@
 
 .PARAMETER DryRun
     Show what would be copied without writing.
+
+.OUTPUTS
+    Exit codes: 0 = ok (validated and synced), 1 = no Flipper detected,
+    2 = workspace missing, 3 = validator failed (abort before copy).
 
 .EXAMPLE
     PS> .\flipper-sync.ps1
@@ -94,7 +102,48 @@ function Sync-Folder {
     }
 }
 
+function Invoke-WorkspaceValidation {
+    # Every sync is gated on both validators: the header check and the
+    # data tests. Fail-fast here -- cheaper than pushing broken payloads
+    # to the device only for them to fail on the Flipper screen.
+    $py = $null
+    foreach ($candidate in @('python', 'py')) {
+        if (Get-Command $candidate -ErrorAction SilentlyContinue) {
+            $py = $candidate
+            break
+        }
+    }
+    if (-not $py) {
+        Write-Host "Python not found on PATH -- cannot run validators (required before every sync)." -ForegroundColor Red
+        Write-Host "Install Python 3 and/or add it to PATH, then re-run." -ForegroundColor Red
+        exit 3
+    }
+
+    $headerScript = Join-Path $src 'scripts\verify_flipper_files.py'
+    $dataScript   = Join-Path $src 'scripts\test_flipper_payloads.py'
+
+    Write-Host ""
+    Write-Host "=== Header validator (verify_flipper_files.py) ===" -ForegroundColor Cyan
+    & $py $headerScript $src
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Header validation FAILED. Fix the issues above and re-run." -ForegroundColor Red
+        exit 3
+    }
+
+    Write-Host ""
+    Write-Host "=== Data tests (test_flipper_payloads.py) ===" -ForegroundColor Cyan
+    & $py $dataScript --root $src
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Data tests FAILED. Fix the issues above and re-run." -ForegroundColor Red
+        exit 3
+    }
+    Write-Host ""
+    Write-Host "Workspace validators passed." -ForegroundColor Green
+}
+
 # ───── main ─────
+Invoke-WorkspaceValidation
+
 $flipper = Find-FlipperDrive
 if (-not $flipper) {
     Write-Host "Flipper Zero not detected on C:\, D:\, E:\, F:\, G:\, H:\" -ForegroundColor Yellow

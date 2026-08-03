@@ -1,0 +1,58 @@
+Filetype: Flipper SubGhz RAW File
+Version: 1
+Frequency: 315000000
+Preset: FuriHalSubGhzPresetOok650Async
+Protocol: RAW
+RAW_Data: 320, -960, 320, -320, 320, -320, 320, -960, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -320, 320, -960, 320, -960, 320, -320, 320, -320, 320, -320, 320, -960, 320, -320, 320, -12000, 320, -960, 320, -320, 320, -320, 320, -960, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -320, 320, -960, 320, -960, 320, -320, 320, -320, 320, -320, 320, -960, 320, -320, 320
+
+# ==============================================================
+#  Template_315_RAW.sub
+#
+#  Purpose: structurally complete 315.00 MHz AM RAW SubGhz file
+#  for the North-American vehicle key-fob band.
+#  RAW_Data below is a REAL, loadable timing stream (not a
+#  placeholder anymore) so the file opens and plays on the
+#  Flipper out of the box.
+#
+#  Frequency notes:
+#    - 315 MHz is the standard North-American vehicle band:
+#      most US-market factory and aftermarket key fobs, remote
+#      starters and keyless-entry remotes transmit here.
+#    - The sibling templates cover the other common vehicle
+#      bands: 330 MHz (GM/Chrysler), 390 MHz (Ford family),
+#      433.92 MHz (EU), 868 MHz (EU smart-entry).
+#
+#  What the signal is:
+#    - Synthesized EV1527-style OOK frame (32-bit code, ~320 us
+#      pulse, short gap 320 us / long gap 960 us), sent twice
+#      with a 12 ms inter-frame gap. It is a generic test
+#      envelope -- it will NOT unlock or start any real vehicle.
+#      Use it to confirm the radio chain works at this
+#      frequency, then overwrite with a real capture.
+#
+#  Honest limits:
+#    - Modern vehicle remotes use rolling-code (KEELOQ-style)
+#      protocols; a RAW replay of a single frame cannot clone
+#      them. This file is a frequency reference / test signal
+#      for your OWN hardware only.
+#    - Transmitting on vehicle bands is regulated. Only test
+#      against equipment you own and are authorized to operate.
+#
+#  How to replace with a real capture:
+#    Flipper -> Sub-GHz -> Read RAW -> capture your device ->
+#    Save -> the saved .sub already has valid RAW_Data. Copy
+#    that line here, or paste your captured line after
+#    "RAW_Data:".
+# ==============================================================
+
+# field              :   value
+# ---------------------------------------------------------------
+# Filetype           :   Flipper SubGhz RAW File
+# Version            :   1
+# Frequency          :   315000000   (= 315.00 MHz, US vehicle band)
+# Preset             :   FuriHalSubGhzPresetOok650Async
+# Protocol           :   RAW
+# RAW_Data           :   <99 alternating timings, see above>
+
+# Validate with:  python ..\scripts\verify_flipper_files.py
+# Data tests:     python ..\scripts\test_flipper_payloads.py

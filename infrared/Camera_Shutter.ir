@@ -1,0 +1,70 @@
+Filetype: IR signals file
+Version: 1
+#
+# ==============================================================
+#  Camera_Shutter.ir
+#
+#  Real camera IR capture, sourced from the Flipper-IRDB project
+#  (github.com/Lucaslhm/Flipper-IRDB) -- original file:
+#  Cameras/Canon/Canon_RC-6_Trigger.ir. Flipper-IRDB is CC0 1.0
+#  (public domain); reproduced with attribution.
+#
+#  This is a REAL capture of the Canon RC-6 wireless remote
+#  trigger (shutter release); the `data:` timing line below is
+#  reproduced verbatim from the source.
+#
+#  Use: set the camera to IR remote-control mode (models listed
+#  below), point the Flipper IR emitter at the camera receiver
+#  and send "Trigger" to release the shutter.
+#
+#  Honest limits: verify against your own camera before relying
+#  on it -- not every EOS body listens for RC-6 on every firmware.
+# ==============================================================
+#
+# Remote trigger compatible with the following Canon models
+#
+# EOS 5DS / 5DS R
+# EOS 600D
+# EOS 7D
+# EOS 450D
+# EOS 550D
+# EOS 5D Mark III
+# EOS 90D
+# EOS D30
+# EOS M5
+# EOS 10D
+# EOS 400D
+# EOS 500D
+# EOS 6D
+# EOS 700D
+# EOS 77D
+# EOS 80D
+# EOS 20D
+# EOS 750D /760D
+# EOS D60
+# EOS M3
+# EOS 100D
+# EOS 300D
+# EOS 5D Mark IV
+# EOS 650D
+# EOS 800D
+# EOS M/
+# EOS M2
+# EOS 350D
+# EOS 60D
+# EOS 60Da
+# EOS 6D Mark II
+# EOS 7D II
+# EOS 5D Mark II
+# EOS 70D
+# EOS M6
+# EOS M5
+#
+name: Trigger
+type: raw
+frequency: 38000
+duty_cycle: 0.330000
+data: 502 7213 290 67972 463
+
+# Validate with:  python ..\scripts\verify_flipper_files.py
+# Data tests:     python ..\scripts\test_flipper_payloads.py

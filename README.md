@@ -75,14 +75,16 @@ IR uses lowercase `name:` / `type:`. Both styles pass. One exception:
 `Key type:` casing is enforced exactly, because the firmware's key lookup
 is case-sensitive (legacy `Key Type:` files fail to load).
 
-Run before every sync:
+Run automatically by `flipper-sync.ps1` before every sync (and manually
+as a pre-flight):
 
 ```powershell
 python "$env:USERPROFILE\FlipperZero\scripts\verify_flipper_files.py"
 ```
 
 Exit `0` = clean, `1` = at least one file has missing required keys,
-`>1` = invocation error. `--strict` returns non-zero on soft warnings too.
+`>1` = invocation error. `--strict` returns non-zero on soft warnings
+too. `flipper-sync.ps1` exits `3` if this check or the data tests fail.
 
 #### `scripts\test_flipper_payloads.py`
 Data-level test runner (Python 3, stdlib only). Complements the header
@@ -97,10 +99,16 @@ validator by checking the *contents* of the payload files:
 - `infrared/*.ir` → parsed records: `address:` / `command:` are hex byte
   fields with the protocol-correct width (NEC = 4 bytes each)
 - `lfrfid/*.rfid` → EM4100 keys: exactly 5 bytes (the 40-bit ID), hex
-  bytes, and a sane carrier frequency
+  bytes, a sane carrier frequency, and a full **on-wire frame rebuild** —
+  the 64-bit frame (9-bit header, 10× nibble+row-parity groups, column
+  parity, stop bit) is reconstructed from the 5 stored bytes and verified
+  against the EM4100 spec
 - `badusb/*.txt` → DuckyScript: `ID VID:PID` line format, integer
-  arguments for `DELAY`/`REPEAT`-style commands, non-empty `STRING`
-  arguments, and command-token typos
+  arguments for `DELAY`/`REPEAT`-style commands, non-empty
+  `STRING`/`ALTSTRING` arguments, integer `ALTCHAR` alt-codes, and
+  script-structure warnings (missing `ID` first line, bare `GUI`/`CTRL`-
+  style modifiers, `REPEAT` with nothing to repeat or a zero count, args
+  to `WAIT_FOR_BUTTON_PRESS`), plus command-token typos
 
 ```powershell
 python "$env:USERPROFILE\FlipperZero\scripts\test_flipper_payloads.py"
@@ -123,14 +131,34 @@ Example output on the shipped workspace:
 known-bad samples, so the test is trustworthy before it's used to judge
 your payloads.
 
-#### `subghz\\Template_433_RAW.sub`
-A structurally complete 433.92 MHz AM RAW SubGhz file with the header
-filled in (`Filetype` / `Version` / `Frequency` / `Preset` / `Protocol: RAW`)
-and a real, loadable `RAW_Data` timing stream (a synthesized
-EV1527-style test frame, 99 alternating pulse/gap values). It plays out
-of the box as a generic test signal, but it is NOT a replay of any
-specific device — to control your own hardware, capture the real signal
-on the Flipper and paste its timing line over `RAW_Data`.
+A GitHub Actions workflow (`.github/workflows/validate.yml`) runs the
+header validator, the data-test self-check, and the data tests on every
+push and pull request — a broken payload turns the build red instead of
+silently failing on a device later.
+
+#### `subghz\\Template_*_RAW.sub` — vehicle frequency templates
+Five structurally complete AM RAW SubGhz files, one per common vehicle
+key-fob / remote-start band the Flipper's radio can actually tune
+(300–928 MHz). Each has the header filled in (`Filetype` / `Version` /
+`Frequency` / `Preset` / `Protocol: RAW`) and a real, loadable
+`RAW_Data` timing stream (a synthesized EV1527-style test frame, 99
+alternating pulse/gap values) so it opens and plays out of the box as a
+generic test signal.
+
+| File | Frequency | Typical vehicle use |
+|---|---|---|
+| `Template_315_RAW.sub` | 315.00 MHz | North America — most US-market fobs / remote starters |
+| `Template_330_RAW.sub` | 330.00 MHz | GM (incl. OnStar-linked) and Chrysler fobs |
+| `Template_390_RAW.sub` | 390.00 MHz | Ford-family fobs / remote starts |
+| `Template_433_RAW.sub` | 433.92 MHz | EU standard band |
+| `Template_868_RAW.sub` | 868.00 MHz | EU smart-entry (BMW, Mercedes, VW-group) |
+
+These are **frequency references / test envelopes, not device clones**:
+modern vehicle remotes use rolling-code (KEELOQ-style) protocols, so a
+RAW replay of a single frame cannot clone them. To control your own
+hardware, capture the real signal on the Flipper (`Sub-GHz → Read RAW`)
+and paste its timing line over `RAW_Data` — and only test against
+equipment you own and are authorized to operate.
 
 #### `nfc\\Mifare_Classic_1k_Template.nfc`
 Structural Mifare Classic 1K tag for emulation testing. The UID is
@@ -142,6 +170,17 @@ works without ABUsing access control on someone else's door.
 
 `ATQA + SAK` match the real Mifare Classic 1K family signatures so the
 Flipper enumerates the file as a Mifare Classic card without complaint.
+
+#### `infrared\\Camera_Shutter.ir`
+A **real** camera IR capture — the Canon RC-6 wireless remote trigger
+(shutter release), sourced verbatim from `Lucaslhm/Flipper-IRDB`
+(`Cameras/Canon/Canon_RC-6_Trigger.ir`). Raw format (`type: raw`) with
+a real 38 kHz timing line. Set the camera to IR remote-control mode,
+point the Flipper at its receiver, and send `Trigger` to release the
+shutter. Compatible with a wide range of Canon EOS bodies (full model
+list is in the file). Unlike the synthesized placeholders elsewhere in
+this workspace, this one is a genuine capture — still verify it against
+your own camera before relying on it.
 
 ### Batch 2: Unleashed-flavoured utilities
 
@@ -188,22 +227,36 @@ the Flipper's RFID emulator is wired correctly.
 
 ## Workflow
 
-Before any sync, run both the header validator and the data tests:
+`flipper-sync.ps1` runs **both validators automatically before every
+sync** — the header check (`verify_flipper_files.py`) then the data
+tests (`test_flipper_payloads.py`). If either fails, the sync aborts
+(exit code `3`) without touching the device. Running them manually is
+now optional, as a pre-flight:
 
 ```powershell
 python "$env:USERPROFILE\FlipperZero\scripts\verify_flipper_files.py"
 # [OK] Scanning: C:\Users\bugre\FlipperZero
 #   [OK  ] ...\badusb\Launch_BugReaperX_HUD.txt
 #   [OK  ] ...\badusb\Vanthryx_Panic_Lock.txt
+#   [OK  ] ...\infrared\Camera_Shutter.ir
 #   [OK  ] ...\infrared\Meeting_Room_Deflector.ir
 #   [OK  ] ...\lfrfid\Audit_Trigger_Badge.rfid
 #   [OK  ] ...\nfc\Mifare_Classic_1k_Template.nfc
+#   [OK  ] ...\subghz\Template_315_RAW.sub
+#   [OK  ] ...\subghz\Template_330_RAW.sub
+#   [OK  ] ...\subghz\Template_390_RAW.sub
 #   [OK  ] ...\subghz\Template_433_RAW.sub
+#   [OK  ] ...\subghz\Template_868_RAW.sub
 # [OK]   workspace is syncable.
 
 python "$env:USERPROFILE\FlipperZero\scripts\test_flipper_payloads.py"
+#   [OK  ] subghz\Template_315_RAW.sub  (99 timings)
+#   [OK  ] subghz\Template_330_RAW.sub  (99 timings)
+#   [OK  ] subghz\Template_390_RAW.sub  (99 timings)
 #   [OK  ] subghz\Template_433_RAW.sub  (99 timings)
+#   [OK  ] subghz\Template_868_RAW.sub  (99 timings)
 #   [OK  ] nfc\Mifare_Classic_1k_Template.nfc  (64 blocks)
+#   [OK  ] infrared\Camera_Shutter.ir  (1 record)
 #   [OK  ] infrared\Meeting_Room_Deflector.ir  (3 records)
 # [OK]   all payload data checks passed.
 ```
@@ -217,12 +270,20 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\FlipperZero\flipper-s
 The script will print, e.g.:
 
 ```
+=== Header validator (verify_flipper_files.py) ===
+[OK]   workspace is syncable.
+
+=== Data tests (test_flipper_payloads.py) ===
+[OK]   all payload data checks passed.
+
+Workspace validators passed.
+
 Flipper Zero detected on D:\.
-Copying 6 files into D:\badusb\
-Copying 1 file  into D:\infrared\
+Copying 2 files into D:\badusb\
+Copying 2 files into D:\infrared\
 Copying 1 file  into D:\lfrfid\
 Copying 1 file  into D:\nfc\
-Copying 1 file  into D:\subghz\
+Copying 5 files into D:\subghz\
 Done. Unplug and reboot the Flipper to pick up your files.
 ```
 
@@ -278,17 +339,74 @@ Just drop them in, then validate, then sync:
 # 1. Drop the file in the matching subdir
 iwr https://example.com/garage.sub -OutFile "$env:USERPROFILE\FlipperZero\subghz\garage.sub"
 
-# 2. Always run the validator BEFORE syncing -- catches missing
-#    Filetype / Frequency / Key headers cheaply on the PC instead of
-#    after they silently fail to load on the Flipper
+# 2. Validate the payload -- flipper-sync.ps1 now does this
+#    automatically before every sync, but it's cheaper to catch a
+#    missing Filetype / Frequency / Key header here than mid-sync
 python "$env:USERPROFILE\FlipperZero\scripts\verify_flipper_files.py"
 
-# 3. Now flipper-sync will ferry them onto the device without surprises
+# 3. Now flipper-sync will re-validate and ferry them onto the device
+#    without surprises
 ```
 
 The validator's exit code lets you wire it into a scheduled task or CI
 hook if you ever want "every BadUSB payload I write gets a header check
 before it can hit the device."
+
+## ESP32 devboard: Wi-Fi/BLE testing (Marauder-style)
+
+The Flipper Zero has **no Wi-Fi or Bluetooth radio of its own**. An ESP32
+devboard plugged into its GPIO header turns it into a portable Wi-Fi/BLE
+testing rig, with the Flipper acting as the screen and controller.
+
+### Hardware
+
+- **Official Flipper Zero WiFi Dev Board** — plugs straight into the 2×8
+  GPIO header on the Flipper's top edge; no wiring.
+- **Generic ESP32 devkit** (WROOM-32 / WROVER) — wire `3V3` + `GND`, and
+  cross `TX ↔ RX` to the Flipper's UART pins (**13 = TX, 14 = RX** on the
+  GPIO header).
+- **Optional microSD** on the devboard so Marauder can save captured
+  traffic as PCAP files (SPI: `VCC→3V3`, `GND→GND`, `DI→IO35`, `DO→IO37`,
+  `SCK→IO36`, `CS→IO10`).
+
+### Firmware
+
+1. **Flash the ESP32** with the Marauder firmware
+   (`justcallmekoko/ESP32Marauder`). Easiest routes: the web installer
+   (Spacehuhn web flasher), **FZ Marauder Flasher**, or
+   **FZEasyMarauderFlash**; build from source if you want customisation.
+2. **Get the Flipper-side UI** — the **"WiFi Marauder" app (by
+   0xchocolate)** ships prebuilt in the popular custom firmwares:
+   **Momentum** (recommended), Unleashed, Xtreme, RogueMaster. On stock
+   firmware, install it from the Flipper app catalog instead.
+3. **Plug the devboard in and launch** the app. The Flipper is just the
+   serial UI — all radio work happens on the ESP32.
+
+### Typical test run (against your OWN network)
+
+- `Scan APs` / `Scan stations` → inventory the 2.4 GHz airspace.
+- `Deauth flood` on your own AP → verify clients re-associate and
+  recovery is automatic (a resilience test).
+- `EAPOL / PMKID scan` → capture a handshake from your own WPA2 network
+  and crack it offline on a PC (aircrack-ng / hashcat) to test password
+  strength.
+- `Packet monitor` / PCAP capture → save traffic to the devboard's SD
+  card for analysis.
+- Bluetooth: BLE sniffing, card-skimmer detection, Airtag sniff.
+- Lab-only extras (keep them in your lab): beacon spam, evil portal,
+  karma, AP-clone spam.
+
+### Legal line
+
+- **Authorized targets only**: your own router/AP and devices, or
+  networks you have written permission to test.
+- Deauth floods, beacon spam, and evil portals are intrusive and
+  detectable. Using them on anyone else's network violates computer-crime
+  law (US CFAA and state statutes, and equivalents elsewhere).
+- Radio traffic bleeds into shared airspace, so keep attacks confined to
+  a controlled setting and your own equipment.
+- This is a testing rig, **not a general vulnerability scanner** —
+  finding software CVEs is PC work (nmap / OpenVAS).
 
 ## Honest limits
 
@@ -306,3 +424,48 @@ before it can hit the device."
 - The `Audit_Trigger_Badge.rfid` UID is a synthetic `DEADBEEF` marker that
   cannot impersonate any real badge — that's a deliberate defense, not
   a limitation.
+
+## Honest limits: cameras, traffic lights, vulnerability scanning
+
+Three topics that come up constantly around a Flipper Zero, and the honest
+version of what the device can and cannot do.
+
+### Cameras
+
+- The Flipper Zero has **no camera and no Wi-Fi/ethernet** — it cannot
+  access, scan, or break into IP/security cameras. That is PC-tool
+  territory (nmap / Shodan-style recon), and accessing cameras you don't
+  own is illegal without authorization.
+- What legitimately *does* exist: **IR camera remotes** (real captured
+  `.ir` files — see `Camera_Shutter.ir`, the Canon RC-6 shutter release)
+  and **RF-based hidden-camera detection** via an ESP32 add-on board
+  (defensive: it finds transmitting devices; it does not break into
+  them).
+
+### Traffic lights
+
+- The viral "Flipper changes traffic lights" is **IR traffic-signal
+  preemption** (OptiCom/MIRT-style), not radio: the internal Sub-GHz
+  radio does nothing here, and the internal IR blaster is too weak — the
+  real rigs drive an *external* high-power IR LED array over GPIO at
+  ~14 Hz to fool legacy optical receivers on signal masts.
+- It is a **federal crime in the US** (18 U.S.C. § 39 — unauthorized
+  preemption use: fines up to $100k, prison) and a criminal offense in
+  the EU (e.g. Germany's StGB § 316b). Emergency/transit agencies hold
+  narrow legal exceptions.
+- **Modern intersections won't respond anyway** — they use encoded IDs,
+  GPS/cellular/DSRC, and log every preemption attempt. So it's
+  simultaneously illegal, obsolete, and recorded.
+- Nothing like it ships in this workspace, and it won't be added.
+
+### Vulnerability scanning
+
+- The Flipper is an **RF/radio tool, not a general vulnerability
+  scanner**. Its built-in scanners hunt *signal types and raw
+  credentials* — SubGHz signal scanner, RFID/NFC/iButton sniffers —
+  which is exactly what the payload files in this workspace exercise.
+- **Wi-Fi/BLE reconnaissance** requires an ESP32 devboard (Wi-Fi
+  scanning, packet capture, deauth-style testing) and is only legitimate
+  against networks you own — see the ESP32 devboard section above.
+- **Software vulnerability scanning** (nmap, nikto, OpenVAS, etc.) is PC
+  territory; the Flipper has no role in it.
