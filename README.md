@@ -57,16 +57,23 @@ canonical Flipper subdir, parses each payload's `Key: Value` header
 lines, and:
 
 - Requires `Filetype` / `Version` / `Frequency` / `Preset` for `.sub`
-- Requires `Filetype` / `Version` / `Device Type` for `.nfc`
-- Requires `Filetype` / `Version` / `Name` / `Type` for `.ir` (case-insensitive)
-- Requires `Filetype` / `Version` / `Frequency` / `Key` for `.rfid`
+- Requires `Filetype` / `Version` / `Device Type` for `.nfc`; Mifare
+  Classic files must also carry `Mifare Classic type` (1K/4K) and
+  `Data format version: 1` (modern firmware refuses to load without them)
+- Requires `Filetype` / `Version` / `Name` / `Type` for `.ir` (case-insensitive);
+  parsed NEC records must use the modern 4-byte `address:` / `command:`
+  fields (the old 2-byte form no longer loads)
+- Requires `Filetype` / `Version` / `Frequency` / `Key type` for `.rfid`
+  with the modern lowercase `Key type:` casing
 - Requires `Filetype` / `Version` for `.ibutton`
 - For BadUSB `.txt`: ensures first non-blank line is `ID`, `REM`, or
   `DEFAULT_DELAY`; surfaces unrecognized command tokens so a typo doesn't
   silently behave as NOP on the device
 
 Case-insensitive: SubGhz / NFC / RFID / iButton use TitleCase keys,
-IR uses lowercase `name:` / `type:`. Both styles pass.
+IR uses lowercase `name:` / `type:`. Both styles pass. One exception:
+`Key type:` casing is enforced exactly, because the firmware's key lookup
+is case-sensitive (legacy `Key Type:` files fail to load).
 
 Run before every sync:
 
@@ -77,12 +84,53 @@ python "$env:USERPROFILE\FlipperZero\scripts\verify_flipper_files.py"
 Exit `0` = clean, `1` = at least one file has missing required keys,
 `>1` = invocation error. `--strict` returns non-zero on soft warnings too.
 
+#### `scripts\test_flipper_payloads.py`
+Data-level test runner (Python 3, stdlib only). Complements the header
+validator by checking the *contents* of the payload files:
+
+- `subghz/*.sub` → the `RAW_Data` timing stream is a valid OOK envelope
+  (integers, strictly alternating pulse/gap, first and last value
+  positive, no zero-length timings)
+- `nfc/*.nfc` → Mifare Classic dumps: all 64 (1K) / 256 (4K) blocks
+  present, 16 bytes each, block-0 UID matches the `UID:` header, BCC byte
+  equals XOR of the UID bytes, SAK/ATQA consistency, sane sector trailers
+- `infrared/*.ir` → parsed records: `address:` / `command:` are hex byte
+  fields with the protocol-correct width (NEC = 4 bytes each)
+- `lfrfid/*.rfid` → EM4100 keys: exactly 5 bytes (the 40-bit ID), hex
+  bytes, and a sane carrier frequency
+- `badusb/*.txt` → DuckyScript: `ID VID:PID` line format, integer
+  arguments for `DELAY`/`REPEAT`-style commands, non-empty `STRING`
+  arguments, and command-token typos
+
+```powershell
+python "$env:USERPROFILE\FlipperZero\scripts\test_flipper_payloads.py"
+python "$env:USERPROFILE\FlipperZero\scripts\test_flipper_payloads.py" --selftest
+```
+
+Example output on the shipped workspace:
+
+```
+  [OK  ] subghz\Template_433_RAW.sub      (99 timings)
+  [OK  ] nfc\Mifare_Classic_1k_Template.nfc  (64 blocks)
+  [OK  ] infrared\Meeting_Room_Deflector.ir  (3 records)
+  [OK  ] lfrfid\Audit_Trigger_Badge.rfid    (EM4100)
+  [OK  ] badusb\Launch_BugReaperX_HUD.txt   (5 lines)
+  [OK  ] badusb\Vanthryx_Panic_Lock.txt     (6 lines)
+[OK]   all payload data checks passed.
+```
+
+`--selftest` verifies the checkers themselves against known-good and
+known-bad samples, so the test is trustworthy before it's used to judge
+your payloads.
+
 #### `subghz\\Template_433_RAW.sub`
 A structurally complete 433.92 MHz AM RAW SubGhz file with the header
 filled in (`Filetype` / `Version` / `Frequency` / `Preset` / `Protocol: RAW`)
-and a documented `RAW_Data` placeholder. Use this when you've captured a
-signal on the Flipper and want a clean template to paste the timing line
-into. Carefully synthesized timings; nothing captured live.
+and a real, loadable `RAW_Data` timing stream (a synthesized
+EV1527-style test frame, 99 alternating pulse/gap values). It plays out
+of the box as a generic test signal, but it is NOT a replay of any
+specific device — to control your own hardware, capture the real signal
+on the Flipper and paste its timing line over `RAW_Data`.
 
 #### `nfc\\Mifare_Classic_1k_Template.nfc`
 Structural Mifare Classic 1K tag for emulation testing. The UID is
@@ -140,7 +188,7 @@ the Flipper's RFID emulator is wired correctly.
 
 ## Workflow
 
-Before any sync, run the validator:
+Before any sync, run both the header validator and the data tests:
 
 ```powershell
 python "$env:USERPROFILE\FlipperZero\scripts\verify_flipper_files.py"
@@ -152,6 +200,12 @@ python "$env:USERPROFILE\FlipperZero\scripts\verify_flipper_files.py"
 #   [OK  ] ...\nfc\Mifare_Classic_1k_Template.nfc
 #   [OK  ] ...\subghz\Template_433_RAW.sub
 # [OK]   workspace is syncable.
+
+python "$env:USERPROFILE\FlipperZero\scripts\test_flipper_payloads.py"
+#   [OK  ] subghz\Template_433_RAW.sub  (99 timings)
+#   [OK  ] nfc\Mifare_Classic_1k_Template.nfc  (64 blocks)
+#   [OK  ] infrared\Meeting_Room_Deflector.ir  (3 records)
+# [OK]   all payload data checks passed.
 ```
 
 Then plug the Flipper in (USB MSD mode) and sync:

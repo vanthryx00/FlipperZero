@@ -12,9 +12,13 @@ Supported file types and required keys:
                         Known DuckyScript commands detected; typo'd tokens
                         surface as warnings.
   subghz/*.sub       -> Requires Filetype, Version, Frequency, Preset.
-  nfc/*.nfc          -> Requires Filetype, Version, Device Type.
-  infrared/*.ir      -> Requires Filetype, Version, Name, Type.
-  lfrfid/*.rfid      -> Requires Filetype, Version, Frequency, Key.
+  nfc/*.nfc          -> Requires Filetype, Version, Device Type. Mifare
+                        Classic files must also carry 'Mifare Classic type'
+                        and 'Data format version' (modern firmware).
+  infrared/*.ir      -> Requires Filetype, Version, Name, Type. Parsed
+                        NEC records must use 4-byte address:/command:.
+  lfrfid/*.rfid      -> Requires Filetype, Version, Frequency, Key type,
+                        with the modern lowercase 'Key type:' casing.
   ibutton/*.ibutton  -> Requires Filetype, Version.
 
 Usage:
@@ -38,8 +42,15 @@ from typing import Iterable
 REQUIRED_SUBGHZ    = ("filetype", "version", "frequency", "preset")
 REQUIRED_NFC       = ("filetype", "version", "device type")
 REQUIRED_IR        = ("filetype", "version", "name", "type")
-REQUIRED_RFID      = ("filetype", "version", "frequency", "key")
+REQUIRED_RFID      = ("filetype", "version", "frequency", "key type")
 REQUIRED_IBUTTON   = ("filetype", "version")
+
+# Modern-firmware keys enforced on top of the required headers (dev branch:
+# mf_classic.c refuses to load a Mifare Classic file without these).
+NFC_MIFARE_KEYS = ("mifare classic type", "data format version")
+# IR protocols whose address:/command: are stored as 4-byte raw values on
+# current firmware; the old 2-byte form no longer loads.
+IR_4BYTE_PROTOCOLS = frozenset({"nec", "necext", "nec42", "nec42ext"})
 
 BADUSB_KNOWN_COMMANDS = {
     "ID", "REM", "DEFAULT_DELAY", "DEFAULT_STRING_DELAY", "DELAY", "STRING_DELAY",
@@ -93,13 +104,37 @@ def parse_kv(text: str) -> dict[str, str]:
     return out
 
 
+def parse_ir_records(text: str) -> list[dict[str, str]]:
+    """Split an .ir file into per-signal records keyed by lowercase keys.
+    A new record starts at each `name:` line; `#` comments and blank lines
+    are skipped.
+    """
+    records: list[dict[str, str]] = []
+    cur: dict[str, str] | None = None
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        if s.lower().startswith("name:"):
+            if cur:
+                records.append(cur)
+            cur = {"name": s.split(":", 1)[1].strip()}
+            continue
+        if cur is not None and ":" in s:
+            k, _, v = s.partition(":")
+            cur[k.strip().lower()] = v.strip()
+    if cur:
+        records.append(cur)
+    return records
+
+
 def validate_subghz(text: str) -> tuple[list[str], list[str]]:
     issues, notes = [], []
     kv = parse_kv(text)
     for k in REQUIRED_SUBGHZ:
         if k not in kv:
             issues.append(f"missing required key: {k}")
-    freq = kv.get("Frequency", "")
+    freq = kv.get("frequency", "")
     if freq and not freq.lstrip("-").isdigit():
         issues.append(f"Frequency must be integer Hz, got: {freq!r}")
     elif freq and not (300_000_000 <= int(freq) <= 928_000_000):
@@ -119,13 +154,23 @@ def validate_nfc(text: str) -> tuple[list[str], list[str]]:
     for k in REQUIRED_NFC:
         if k not in kv:
             issues.append(f"missing required key: {k}")
-    dtype = kv.get("Device Type", "")
+    dtype = kv.get("device type", "")
     allowed = {
         "ISO14443-3A", "ISO14443-3B", "ISO14443-4A",
         "NTAG/Ultralight", "Mifare Classic", "Mifare DESFire",
     }
     if dtype and dtype not in allowed:
         notes.append(f"Unrecognized Device Type {dtype!r} -- verify against Flipper docs")
+    if "mifare classic" in dtype.lower():
+        for k in NFC_MIFARE_KEYS:
+            if k not in kv:
+                issues.append(f"missing required key: {k} (Mifare Classic)")
+        mct = kv.get("mifare classic type", "")
+        if mct and mct.upper() not in ("1K", "4K"):
+            notes.append(f"Unrecognized Mifare Classic type {mct!r} -- expected 1K or 4K")
+        dfv = kv.get("data format version", "")
+        if dfv and dfv != "1":
+            notes.append(f"Unrecognized Data format version {dfv!r} -- expected 1")
     if "UID:" in text and re.search(r"UID:\s*([0-9A-Fa-f\s]+)", text):
         notes.append(
             "Contains a UID -- do not sync a real contactless card UID to your "
@@ -140,6 +185,35 @@ def validate_ir(text: str) -> tuple[list[str], list[str]]:
     for k in REQUIRED_IR:
         if k not in kv:
             issues.append(f"missing required key: {k}")
+    # Per-record checks: parsed signals need address:/command: with the
+    # protocol-correct width (NEC family = 4 hex bytes on modern firmware).
+    for i, rec in enumerate(parse_ir_records(text)):
+        label = rec.get("name") or f"record {i + 1}"
+        if (rec.get("type") or "").lower() != "parsed":
+            continue  # raw records store a timing array, not byte fields
+        proto = (rec.get("protocol") or "").lower()
+        if not proto:
+            issues.append(f"{label}: parsed record missing 'protocol:'")
+            continue
+        if proto in IR_4BYTE_PROTOCOLS:
+            for field in ("address", "command"):
+                val = rec.get(field)
+                if val is None:
+                    issues.append(f"{label}: parsed {proto} record missing '{field}:'")
+                    continue
+                toks = val.split()
+                if len(toks) != 4:
+                    issues.append(
+                        f"{label}: {field}: must be 4 hex bytes on modern "
+                        f"firmware, got {len(toks)} ({val!r})")
+                for tok in toks:
+                    if not re.fullmatch(r"[0-9A-Fa-f]{2}", tok):
+                        issues.append(f"{label}: {field}: non-hex byte {tok!r}")
+                        break
+        else:
+            for field in ("address", "command"):
+                if not rec.get(field):
+                    issues.append(f"{label}: parsed {proto} record missing '{field}:'")
     return issues, notes
 
 
@@ -149,6 +223,21 @@ def validate_rfid(text: str) -> tuple[list[str], list[str]]:
     for k in REQUIRED_RFID:
         if k not in kv:
             issues.append(f"missing required key: {k}")
+    # A data-bearing key is required (modern firmware reads 'Data', older
+    # reads 'Key'); having only a 'Key type' selector is not enough.
+    if "key" not in kv and "data" not in kv:
+        issues.append("missing key/data: at least one of 'Key:' or 'Data:' "
+                      "is required")
+    # The firmware key lookup is case-sensitive: modern builds read
+    # 'Key type' (lowercase) and ignore the legacy 'Key Type:' casing.
+    # Deliberately NO re.IGNORECASE -- this check is about casing. Comments
+    # are stripped so a doc note about the old casing can't trip it.
+    body = "\n".join(
+        l for l in text.splitlines() if not l.lstrip().startswith("#"))
+    if re.search(r"(?m)^Key\s+Type\s*:", body):
+        issues.append(
+            "'Key Type:' uses legacy casing -- modern firmware reads "
+            "'Key type:'")
     return issues, notes
 
 
@@ -291,7 +380,7 @@ def main(argv: list[str]) -> int:
     print(f"  Soft warnings        : {soft_warnings}")
 
     if hard_failures:
-        print("[FAIL] at least one file has missing required keys -- "
+        print("[FAIL] at least one file failed validation -- "
               "fix or remove before running flipper-sync.ps1 .")
         return 1
     if soft_warnings and args.strict:

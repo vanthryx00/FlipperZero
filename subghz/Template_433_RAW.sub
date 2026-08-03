@@ -3,53 +3,44 @@ Version: 1
 Frequency: 433920000
 Preset: FuriHalSubGhzPresetOok650Async
 Protocol: RAW
-RAW_Data: EMPTY -- see REM lines above for usage; paste captured timings BELOW.
+RAW_Data: 320, -960, 320, -320, 320, -320, 320, -960, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -320, 320, -960, 320, -960, 320, -320, 320, -320, 320, -320, 320, -960, 320, -320, 320, -12000, 320, -960, 320, -320, 320, -320, 320, -960, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -960, 320, -320, 320, -320, 320, -960, 320, -960, 320, -320, 320, -320, 320, -320, 320, -960, 320, -320, 320
 
-REM ==============================================================
-REM  Template_433_RAW.sub
-REM
-REM  Purpose: a structurally complete 433.92 MHz AM RAW SubGhz
-REM  file with documented microsecond timings so you can paste
-REM  real capture data into RAW_Data without breaking the format.
-REM
-REM  Why 433.92 MHz: common ISM band for short-range devices
-REM  (weather stations, older garage openers, simple alarm
-REM  sensors).  This template is a *structural reference*, not a
-REM  captured replay of any specific device.
-REM
-REM  RAW_Data format (per official docs):
-REM    - Comma-separated integers in microseconds.
-REM    - Numbers alternate positive (pulse length) /
-REM      negative (gap length).
-REM    - First value must be positive.
-REM    - Last value must be positive.
-REM    - Typical lengths: 1-10000 entries for a single button press.
-REM
-REM  Example structure below is a synthesized "button-down" envelope;
-REM  replace with real captured timings when you record a signal.
-REM ==============================================================
+# ==============================================================
+#  Template_433_RAW.sub
+#
+#  Purpose: structurally complete 433.92 MHz AM RAW SubGhz file.
+#  RAW_Data below is a REAL, loadable timing stream (not a
+#  placeholder anymore) so the file opens and plays on the
+#  Flipper out of the box.
+#
+#  What the signal is:
+#    - Synthesized EV1527-style OOK frame (32-bit code, ~320 us
+#      pulse, short gap 320 us / long gap 960 us), sent twice with
+#      a 12 ms inter-frame gap. It is a generic test envelope --
+#      it will NOT open any real garage/gate. It is meant as a
+#      known-good reference frame you can transmit to confirm the
+#      radio chain works, then overwrite with a real capture.
+#
+#  RAW_Data format (per official docs):
+#    - Comma-separated integers in microseconds.
+#    - Numbers alternate positive (pulse length) /
+#      negative (gap length).
+#    - First value must be positive, last value must be positive.
+#
+#  How to replace with a real capture:
+#    Flipper -> Sub-GHz -> Read RAW -> capture your device ->
+#    Save -> the saved .sub already has valid RAW_Data. Copy that
+#    line here, or paste your captured line after "RAW_Data:".
+# ==============================================================
 
-REM Synthesized example marks (~10 ms press + ~500 ms gap) so the file
-REM is parseable but does not reproduce a known replay signal. After
-REM recording on a real device, replace RAW_Data with the captured line.
+# field              :   value
+# ---------------------------------------------------------------
+# Filetype           :   Flipper SubGhz RAW File
+# Version            :   1
+# Frequency          :   433920000   (= 433.92 MHz)
+# Preset             :   FuriHalSubGhzPresetOok650Async
+# Protocol           :   RAW
+# RAW_Data           :   <99 alternating timings, see above>
 
-REM Pulse (high)   : 500  us
-REM Gap   (low)    : 500  us   (one symbol)
-REM Long gap       : 10000 us  (inter-frame separator)
-REM
-REM Sample frame (synthesized):
-REM   500, -500, 500, -500, 500, -10000
-REM
-REM A real button-down on e.g. an OOK 650bps device typically has
-REM 24-64 such pulses; capture with the Flipper, then paste the line.
-
-REM field              :   example value (do not transmit)
-REM ---------------------------------------------------------------
-REM Filetype           :   Flipper SubGhz RAW File
-REM Version            :   1
-REM Frequency          :   433920000   (= 433.92 MHz)
-REM Preset             :   FuriHalSubGhzPresetOok650Async
-REM Protocol           :   RAW
-REM RAW_Data           :   <paste your capture here>
-
-REM Verify with:  python ..\scripts\verify_flipper_files.py
+# Validate with:  python ..\scripts\verify_flipper_files.py
+# Data tests:     python ..\scripts\test_flipper_payloads.py

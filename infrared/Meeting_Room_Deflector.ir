@@ -21,38 +21,40 @@ Version: 1
 #  if BugReaperX / Vanthryx output accidentally gets cast to a
 #  shared projector.
 #
-#  All address: and command: values below are SYNTHESIZED
-#  placeholders, NOT captured from any real device. Verify
-#  against the actual remote for your specific A/V hardware
-#  before relying on these in production. If they do not
-#  match, replace address: 04 00 and command: 07 F3 / F4 / F1
-#  with the values captured from your own device.
+#  The address/command values are SYNTHESIZED, NOT captured from
+#  any real device, so they will not match your specific A/V
+#  remote. They are structurally VALID NEC codes though (see
+#  below), so the file parses, transmits and works as a generic
+#  NEC remote -- but to actually control your hardware, learn the
+#  real codes: Infrared -> Learn, then replace the fields.
 #
-#  NEC protocol structure:
-#    - 8-bit address, 8-bit command (auto-complemented on
-#      the wire by NEC's built-in parity).
-#    - Leader 9 ms high + 4.5 ms low + 32 data bits + 560 us
-#      trailer. The Flipper builds this transparently from
-#      the parsed fields below.
+#  NEC protocol notes:
+#    - address: and command: are stored as 4-byte little-endian
+#      raw values (e.g. command 07 00 00 00 = NEC command byte
+#      0x07). The Flipper encoder automatically appends each
+#      byte's complement on the wire (0x07 -> 07 F8), so you
+#      never write the complement yourself.
+#    - 8-bit address 0x04, commands 0x07 (Mute) / 0x08
+#      (Display_Off) / 0x15 (Volume_Down x3).
 # ==============================================================
 #
 name: Mute
 type: parsed
 protocol: NEC
-address: 04 00
-command: 07 F3
+address: 04 00 00 00
+command: 07 00 00 00
 #
 name: Display_Off
 type: parsed
 protocol: NEC
-address: 04 00
-command: 07 F4
+address: 04 00 00 00
+command: 08 00 00 00
 #
 name: Volume_Down_x3
 type: parsed
 protocol: NEC
-address: 04 00
-command: 07 F1
+address: 04 00 00 00
+command: 15 00 00 00
 #
 # Notes for the operator:
 #   - Use Infrared -> Saved -> [Hold signal to edit] to
@@ -61,5 +63,9 @@ command: 07 F1
 #   - To add a new code, append a `name:` / `type:` /
 #     `protocol:` / `address:` / `command:` block separated
 #     by a `#` blank line.
+#   - To make these control YOUR A/V gear, learn the real
+#     remote's codes first and paste them in place of the
+#     synthesized values above.
 #
 # Validate with:  python ..\scripts\verify_flipper_files.py
+# Data tests:     python ..\scripts\test_flipper_payloads.py

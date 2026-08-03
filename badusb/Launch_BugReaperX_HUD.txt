@@ -6,8 +6,10 @@ REM  Authorized target is the operator's own machine. Do not use on
 REM  any system you do not own or have explicit permission to control.
 REM ==============================================================
 
-REM HID VID:PID spoofing line -- harmless but flipper devs recommend it.
-ID 1234:5678 Flipper Zero
+REM HID VID:PID spoofing line -- presents as a Logitech Unifying
+REM receiver (real device VID:PID) so the keystrokes are less
+REM conspicuous than a generic "Flipper" HID.
+ID 046d:c31c
 
 REM Give Windows time to enumerate the HID device before keypresses.
 DEFAULT_DELAY 100
@@ -20,6 +22,7 @@ DELAY 500
 STRING cmd /c start http://127.0.0.1:7777
 ENTER
 
-REM If the URL ever needs to be parameterized, change port here:
-REM   STRING cmd /c start http://127.0.0.1:%FLIPPER_PORT%
-REM and pass -e FLIPPER_PORT=NNNN to qFlipper when flashing this file.
+REM If BugReaperX ever moves off port 7777, change the URL in the
+REM STRING line above (one edit, no other changes needed).
+REM Validate with:  python ..\scripts\verify_flipper_files.py
+REM Data tests:     python ..\scripts\test_flipper_payloads.py

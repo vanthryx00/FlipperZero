@@ -1,54 +1,61 @@
 Filetype: Flipper NFC device
 Version: 4
-Device Type: Mifare Classic
-REM UID is exactly 4 bytes (Mifare Classic single-size). The chosen value
-REM 04 DE AD BE is arbitrary + safe -- no real card matches this.
-REM BCC (Block Check Character) is XOR(0x04, 0xDE, 0xAD, 0xBE) = 0xEE.
+Device type: Mifare Classic
+# UID is exactly 4 bytes (Mifare Classic single-size). The chosen value
+# 04 DE AD BE is arbitrary + safe -- no real card matches this.
+# BCC (Block Check Character) is XOR(0x04, 0xDE, 0xAD, 0xBE) = 0xC9.
 UID: 04 DE AD BE
 ATQA: 04 44
 SAK: 08
+# Mifare Classic specific data
+Mifare Classic type: 1K
+Data format version: 1
+# Mifare Classic blocks, '??' means unknown data
 
-REM ==============================================================
-REM  Mifare_Classic_1k_Template.nfc
-REM
-REM  Purpose: structural Mifare Classic 1K tag for emulation testing.
-REM  The UID here is *deliberately* 04:DE:AD:BE:EF so it cannot
-REM  impersonate any real contactless card. Do NOT replace the UID
-REM  with a card you do not own -- you can lock yourself out of
-REM  door readers that perform whitelist matching.
-REM
-REM  ATQA + SAK match the real Mifare Classic 1K family
-REM  signatures, so the Flipper can enumerate this file as a
-REM  Mifare Classic card without complaint.
-REM
-REM  Block 0 is the manufacturer block (UID + BCC); we keep the
-REM  bytes straight (no BCC inconsistency) so the file parses
-REM  cleanly through the Flipper's NFC emulator.
-REM
-REM  Blocks 1-15 are sector 0 trailer + data, all zeroes -- the
-REM  factory default for an erased card. If you ever fill these
-REM  with real keys, treat them like credentials.
-REM ==============================================================
+# ==============================================================
+#  Mifare_Classic_1k_Template.nfc
+#
+#  Purpose: structural Mifare Classic 1K tag for emulation testing.
+#  The UID here is *deliberately* 04:DE:AD:BE so it cannot
+#  impersonate any real contactless card. Do NOT replace the UID
+#  with a card you do not own -- you can lock yourself out of
+#  door readers that perform whitelist matching.
+#
+#  ATQA + SAK match the real Mifare Classic 1K family
+#  signatures, so the Flipper can enumerate this file as a
+#  Mifare Classic card without complaint.
+#
+#  Layout notes (all 64 blocks present so the file loads and
+#  emulates fully):
+#    - Block 0  : manufacturer block. UID(4) + BCC(1) + SAK(1) +
+#                 ATQA(2) + 8 manufacturer bytes = 16 bytes.
+#    - Blocks 1-2, 4-6, ... : data blocks (all zeroes, erased
+#                 card state).
+#    - Blocks 3, 7, 11, ..., 63 : sector trailers. The factory
+#                 default FF FF FF FF FF FF FF 07 80 69 FF FF FF
+#                 FF FF FF means Key A = Key B = all-FF and the
+#                 access bits allow any key to read/write.
+#
+#  If you ever fill these with real keys, treat them like
+#  credentials.
+# ==============================================================
 
-Block 0: 04 DE AD BE C9 00 00 00 00 00 00 00 00 00 00
+Block 0: 04 DE AD BE C9 08 04 44 62 63 64 65 66 67 68 69
 Block 1: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 2: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-Block 3: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 3: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
 Block 4: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 5: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 6: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-Block 7: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 7: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
 Block 8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 9: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 10: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-Block 11: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 11: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
 Block 12: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 13: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 14: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 15: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
-
-REM Sector 1-15 trailers: standard Mifare 1K access bits (FF FF FF FF FF FF = default key A & key B)
-REM Sector 1 trailer (Block 19) example -- the Flipper will accept zeros here.
 Block 16: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 17: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 18: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
@@ -65,12 +72,43 @@ Block 28: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 29: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 30: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 Block 31: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 32: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 33: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 34: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 35: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 36: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 37: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 38: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 39: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 40: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 41: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 42: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 43: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 44: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 45: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 46: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 47: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 48: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 49: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 50: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 51: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 52: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 53: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 54: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 55: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 56: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 57: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 58: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 59: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
+Block 60: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 61: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 62: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Block 63: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF
 
-REM Notes for the operator:
-REM   - Real Mifare 1K cards have a unique UID; this template uses
-REM     a fake 04:DE:AD:BE:EF. Use it to test that the Flipper
-REM     emulator + an NFC reader handshake works, NOT to bypass
-REM     access control on third-party systems.
-REM   - Validation: python ..\scripts\verify_flipper_files.py
-REM
-REM   Verify with:  python ..\scripts\verify_flipper_files.py
+# Notes for the operator:
+#   - Real Mifare 1K cards have a unique UID; this template uses
+#     a fake 04:DE:AD:BE. Use it to test that the Flipper
+#     emulator + an NFC reader handshake works, NOT to bypass
+#     access control on third-party systems.
+#   - Validation: python ..\scripts\verify_flipper_files.py
+#   - Data tests: python ..\scripts\test_flipper_payloads.py

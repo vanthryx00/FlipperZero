@@ -32,7 +32,7 @@ REM      flashes a "The system cannot find the path specified." error.
 REM    - Add-Content lazily creates flipper_panic.log if missing.
 REM ==============================================================
 
-ID 1234:5678 Flipper Zero
+ID 046d:c31c
 
 DEFAULT_DELAY 100
 DELAY 800
@@ -49,3 +49,4 @@ DELAY 500
 WINDOWS l
 
 REM Validate with:  python ..\scripts\verify_flipper_files.py
+REM Data tests:      python ..\scripts\test_flipper_payloads.py

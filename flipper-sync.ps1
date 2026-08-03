@@ -5,8 +5,10 @@
 .DESCRIPTION
     Scans every removable drive (C-H) for the canonical Flipper SD-card
     marker pair (apps\ AND subghz\ as folders). When found, copies the
-    workspace contents onto the device's SD card root. Skips _vendor\
-    intentionally — never copy the local qFlipper cache onto a device.
+    workspace contents onto the device's SD card root. Skips PC-only
+    content: _vendor\ (local qFlipper cache), scripts\ and
+    consolidation\ (PC-side tooling), .git\, and top-level helper files
+    (README.md, flipper-sync.*, .gitignore, etc.).
 
 .PARAMETER DryRun
     Show what would be copied without writing.
@@ -35,8 +37,8 @@ if (-not (Test-Path -LiteralPath $src -PathType Container)) {
     exit 2
 }
 
-# Vendor cache stays local — do NOT copy it onto the device.
-$skip_name = '_vendor'
+# PC-only content -- never push these onto the device.
+$skip_dirs = @('_vendor', 'scripts', 'consolidation', '.git')
 
 function Test-IsFlipperDrive {
     param([string]$Path)
@@ -62,11 +64,17 @@ function Sync-Folder {
     param(
         [string]$Source,
         [string]$Destination,
-        [string]$Indent = ''
+        [string]$Indent = '',
+        [switch]$Root
     )
     $entries = Get-ChildItem -LiteralPath $Source -Force
     foreach ($e in $entries) {
-        if ($e.Name -eq $skip_name) { continue }
+        if ($e.Name -in $skip_dirs) { continue }
+        # At the workspace root only, skip PC-side helper files.
+        if ($Root -and -not $e.PSIsContainer -and
+            ($e.Name -eq '.gitignore' -or $e.Extension -in @('.md', '.cmd', '.ps1'))) {
+            continue
+        }
         $target = Join-Path $Destination $e.Name
         if ($e.PSIsContainer) {
             if (-not (Test-Path -LiteralPath $target)) {
@@ -97,7 +105,7 @@ if (-not $flipper) {
 Write-Host "Flipper Zero detected at ${flipper}." -ForegroundColor Cyan
 if ($DryRun) { Write-Host "(dry run; nothing will be written)" -ForegroundColor DarkCyan }
 
-Sync-Folder -Source $src -Destination $flipper
+Sync-Folder -Source $src -Destination $flipper -Root
 
 if (-not $DryRun) {
     Write-Host ""

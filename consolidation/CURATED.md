@@ -10,20 +10,20 @@ Legend: **KEEP** = leave as-is · **MERGE** = bring clean files into
 
 ## One decision per source
 
-- [ ] `apps/`                                → ___________________
-- [ ] `badusb/`                              → ___________________
-- [ ] `dolphin/`                             → ___________________
-- [ ] `ibutton/`                             → ___________________
-- [ ] `infrared/`                            → ___________________
-- [ ] `lfrfid/`                              → ___________________
-- [ ] `nfc/`                                 → ___________________
-- [ ] `subghz/`                              → ___________________
-- [ ] `u2f/`                                 → ___________________
-- [ ] `scripts/`                             → ___________________
-- [ ] `settings/`                            → ___________________
-- [ ] `_vendor/`                             → ___________________ (decide: submodule | vendored copy | drop)
-- [ ] `flipper-sync.ps1`                     → **ARCHIVE** (replaced by `autosync.ps1`)
-- [ ] `flipper-sync.cmd`                     → **ARCHIVE** (wrapper of above)
+- [x] `apps/`                                → **KEEP**
+- [x] `badusb/`                              → **KEEP**
+- [x] `dolphin/`                             → **KEEP**
+- [x] `ibutton/`                             → **KEEP**
+- [x] `infrared/`                            → **KEEP**
+- [x] `lfrfid/`                              → **KEEP**
+- [x] `nfc/`                                 → **KEEP**
+- [x] `subghz/`                              → **KEEP**
+- [x] `u2f/`                                 → **KEEP**
+- [x] `scripts/`                             → **KEEP**
+- [x] `settings/`                            → **REVIEW** (inspect before first sync)
+- [x] `_vendor/`                             → **REVIEW_VENDOR** (keep as vendored copy; do NOT push to device)
+- [x] `flipper-sync.ps1`                     → **ARCHIVE** (replaced by `autosync.ps1`)
+- [x] `flipper-sync.cmd`                     → **ARCHIVE** (wrapper of above)
 
 ---
 
@@ -45,7 +45,10 @@ silently do nothing until you reconcile.
 
 | Date | Source | Decision | Rationale |
 | ---- | ------ | -------- | --------- |
-|      |        |          |           |
+| 2026-08-02 | apps, badusb, dolphin, ibutton, infrared, lfrfid, nfc, subghz, u2f, scripts | KEEP | Active payload/tooling trees, all syncable to device |
+| 2026-08-02 | settings | REVIEW | Config files; inspect before first push |
+| 2026-08-02 | _vendor | REVIEW_VENDOR | qFlipper cache; keep local, never sync to device |
+| 2026-08-02 | flipper-sync.ps1 / .cmd | ARCHIVE | Superseded by consolidation/autosync.ps1 |
 
 ## After curation
 
