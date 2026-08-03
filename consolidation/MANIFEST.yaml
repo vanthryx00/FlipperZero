@@ -14,7 +14,7 @@ hub:
 
 git:
   initialized: true   # set true after running `git init C:\Users\bugre\FlipperZero`
-  remote: https://github.com/vanthryx00/-FlipperZero.git  # set after `git push -u origin main`
+  remote: https://github.com/vanthryx00/FlipperZero.git  # set after `git push -u origin main` (repo renamed, old URL redirects)
 
 workspaces:
   - source: C:\Users\bugre\FlipperZero\apps
