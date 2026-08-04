@@ -1,0 +1,14 @@
+Filetype: Flipper iButton key
+Version: 2
+Protocol: DS1990
+Rom Data: 01 00 DE AD BE EF 01 8E
+# honest-limits: synthesized/test key -- the DE AD BE EF serial pattern cannot
+# appear on a real Dallas 1-Wire iButton wafer, so this file CANNOT impersonate
+# any real key. It emulates a valid DS1990 (family code 0x01; ROM CRC-8/MAXIM =
+# 8E computed over the first 7 bytes) so you can smoke-test the Flipper's
+# iButton emulator + reader handshake end-to-end without touching a real
+# credential. Verify against your own reader before relying on it.
+#
+# Format: current firmware writes iButton keys as Version 2 with a
+# "Protocol:" + "Rom Data:" pair (lib/ibutton/ibutton_protocols.c and
+# dallas_common.c). Version 1 files using "Key type:" + "Data:" still load.

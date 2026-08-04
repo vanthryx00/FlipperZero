@@ -20,7 +20,7 @@ Legend: **KEEP** = leave as-is · **MERGE** = bring clean files into
 - [x] `subghz/`                              → **KEEP**
 - [x] `u2f/`                                 → **KEEP**
 - [x] `scripts/`                             → **KEEP**
-- [x] `settings/`                            → **REVIEW** (inspect before first sync)
+- [x] `settings/`                            → **KEEP** (starter `system_settings.txt` added + inspected)
 - [x] `_vendor/`                             → **REVIEW_VENDOR** (keep as vendored copy; do NOT push to device)
 - [x] `flipper-sync.ps1`                     → **ARCHIVE** (replaced by `autosync.ps1`)
 - [x] `flipper-sync.cmd`                     → **ARCHIVE** (wrapper of above)
@@ -47,6 +47,8 @@ silently do nothing until you reconcile.
 | ---- | ------ | -------- | --------- |
 | 2026-08-02 | apps, badusb, dolphin, ibutton, infrared, lfrfid, nfc, subghz, u2f, scripts | KEEP | Active payload/tooling trees, all syncable to device |
 | 2026-08-02 | settings | REVIEW | Config files; inspect before first push |
+| 2026-08-04 | settings | KEEP | Documented placeholder `system_settings.txt` added (no active keys; settings live in RTC / device-written files on current firmware); reviewed before sync |
+| 2026-08-04 | ibutton, apps, dolphin, u2f | KEEP | Folder completion: CRC-valid DS1990 test key + per-folder READMEs |
 | 2026-08-02 | _vendor | REVIEW_VENDOR | qFlipper cache; keep local, never sync to device |
 | 2026-08-02 | flipper-sync.ps1 / .cmd | ARCHIVE | Superseded by consolidation/autosync.ps1 |
 

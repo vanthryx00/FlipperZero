@@ -1,0 +1,8 @@
+# Optional dependency -- only needed for the MongoDB Atlas backend of the
+# agentic workflow (agentic/). The workflow runs fully with zero deps via the
+# local FileStore fallback; install pymongo only when MONGODB_URI is set.
+#
+#   pip install -r requirements.txt
+#
+# For semantic vector embeddings (optional), also: pip install openai
+pymongo>=4.6

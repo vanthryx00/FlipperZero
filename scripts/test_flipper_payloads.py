@@ -30,6 +30,12 @@ but a broken body fails here:
                  warnings (missing ID first line, bare modifiers, REPEAT
                  with nothing to repeat or a zero count, args to
                  WAIT_FOR_BUTTON_PRESS), and typos in command tokens.
+  ibutton/*.ibutton  Dallas 1-Wire keys: exactly 8 ROM bytes (family code +
+                 6 serial + CRC), hex bytes, and a valid CRC-8/MAXIM over
+                 the first 7 bytes -- a bad CRC shows as a CRC error on the
+                 Flipper's iButton app. Accepts the current Version 2
+                 format (Protocol: + Rom Data:) and legacy Version 1
+                 (Key type: + Data:).
 
 It is cheap enough to run before every flipper-sync and in CI.
 
@@ -70,6 +76,20 @@ NEC_FAMILY = {"nec", "necext", "nec42", "nec42ext"}
 # files, which use e.g. 'command: 0C 00 00 00' for RC5). The old
 # packed-single-value convention is not used on modern firmware.
 BYTE_WIDTHS = {p: 4 for p in (NEC_FAMILY | {"rc5", "rc5ext", "rc6"})}
+
+# iButton ROM is 8 bytes: family code + 6 serial bytes + CRC-8/MAXIM over
+# the first 7 bytes (1-Wire spec; matches the Flipper's dallas_common.c and
+# one_wire/maxim_crc.c). Current firmware (dev) writes Version 2 files with
+# 'Protocol:' + 'Rom Data:' keys; Version 1 'Key type:' + 'Data:' still load.
+IBUTTON_ROM_BYTES = 8
+# Dallas family codes per the Flipper's own protocol registry
+# (lib/ibutton/protocols/dallas/*.c, verified from source -- these differ
+# from the classic Maxim datasheet codes). Only used for a soft warning when
+# a file's family byte disagrees with its declared protocol; a mismatch does
+# not fail the load. Protocols without a verified entry are left unchecked.
+IBUTTON_FAMILY_BY_NAME = {
+    "DS1990": 0x01, "DS1992": 0x08, "DS1996": 0x0C, "DS1971": 0x14,
+}
 
 # EM4100 stores the 40-bit ID as 5 bytes (EM4100_DECODED_DATA_SIZE).
 EM4100_DATA_BYTES = 5
@@ -328,6 +348,60 @@ def check_ir(text: str) -> tuple[list[str], list[str]]:
     return fails, warns
 
 
+def _maxim_crc8(data: bytes) -> int:
+    """Dallas / Maxim CRC-8 (reflected poly 0x8C) used for 1-Wire ROMs.
+    Verified against the CRC-8/MAXIM check value: crc8(b'123456789') == 0xA1.
+    """
+    crc = 0
+    for b in data:
+        crc ^= b
+        for _ in range(8):
+            crc = ((crc >> 1) ^ 0x8C) if (crc & 1) else (crc >> 1)
+    return crc
+
+
+def check_ibutton(text: str) -> tuple[list[str], list[str]]:
+    """Validate an iButton key file: 8-byte Dallas ROM with a valid
+    CRC-8/MAXIM. Accepts current Version 2 (Protocol + Rom Data) and legacy
+    Version 1 (Key type + Data). A bad CRC fails -- the Flipper's iButton
+    app reports a CRC error for such files.
+    """
+    fails: list[str] = []
+    warns: list[str] = []
+    kv = parse_kv(text)
+    proto = kv.get("protocol") or kv.get("key type") or ""
+    if not proto:
+        fails.append("missing 'Protocol' (v2) / 'Key type' (v1) header")
+        return fails, warns
+    rom_txt = kv.get("rom data") or kv.get("data") or ""
+    toks = rom_txt.split()
+    if not toks:
+        fails.append(f"{proto}: missing 'Rom Data' (v2) / 'Data' (v1) field")
+        return fails, warns
+    if any(not HEX2_RE.fullmatch(t) for t in toks):
+        for tok in toks:
+            if not HEX2_RE.fullmatch(tok):
+                fails.append(f"{proto}: non-hex ROM byte {tok!r}")
+        return fails, warns
+    if len(toks) != IBUTTON_ROM_BYTES:
+        fails.append(
+            f"{proto}: expected {IBUTTON_ROM_BYTES} ROM bytes "
+            f"(family + 6 serial + CRC), got {len(toks)}")
+        return fails, warns
+    rom = bytes(int(t, 16) for t in toks)
+    expected_crc = _maxim_crc8(rom[:7])
+    if rom[7] != expected_crc:
+        fails.append(
+            f"{proto}: ROM CRC byte {rom[7]:02X} != CRC-8/MAXIM over first "
+            f"7 bytes = {expected_crc:02X} (CRC error on the device)")
+    fam = IBUTTON_FAMILY_BY_NAME.get(proto.upper())
+    if fam is not None and rom[0] != fam:
+        warns.append(
+            f"{proto}: family code {rom[0]:02X} != expected {fam:02X} "
+            f"for {proto}")
+    return fails, warns
+
+
 def build_em4100_frame(uid: bytes) -> str:
     """Build the 64-bit EM4100 on-wire frame for a 40-bit ID (5 bytes).
 
@@ -530,6 +604,8 @@ def run_checks(text: str, suffix: str) -> tuple[list[str], list[str]]:
         return check_rfid(text)
     if suffix == ".txt":
         return check_badusb(text)
+    if suffix == ".ibutton":
+        return check_ibutton(text)
     return [], []
 
 
@@ -537,7 +613,7 @@ def discover(root: Path) -> list[Path]:
     out: list[Path] = []
     for sub, ext in (("subghz", ".sub"), ("nfc", ".nfc"),
                      ("infrared", ".ir"), ("lfrfid", ".rfid"),
-                     ("badusb", ".txt")):
+                     ("badusb", ".txt"), ("ibutton", ".ibutton")):
         d = root / sub
         if d.is_dir():
             out.extend(
@@ -562,6 +638,9 @@ def _summary(path: Path, text: str) -> str:
         return m.group(1) if m else ""
     if path.suffix.lower() == ".txt":
         return f"{len([l for l in text.splitlines() if l.strip() and not l.lstrip().startswith('REM')])} lines"
+    if path.suffix.lower() == ".ibutton":
+        m = re.search(r"(?im)^Protocol\s*:\s*(\S+)", text)
+        return m.group(1) if m else ""
     return ""
 
 
@@ -742,6 +821,36 @@ def selftest() -> list[str]:
     _, w = check_rfid(rfid_good.replace("Bit Count: 64", "Bit Count: 40"))
     expect(any("Bit Count" in x for x in w),
            "non-64 Bit Count should warn for EM4100")
+
+    # ---- iButton --------------------------------------------------------
+    ib_good = (
+        "Filetype: Flipper iButton key\nVersion: 2\nProtocol: DS1990\n"
+        "Rom Data: 01 00 DE AD BE EF 01 8E"
+    )
+    f, _ = check_ibutton(ib_good)
+    expect(not f, f"good iButton flagged: {f}")
+    f, _ = check_ibutton(ib_good.replace("8E", "8F"))
+    expect(f, "iButton CRC mismatch not caught")
+    f, _ = check_ibutton(ib_good.replace(
+        "Rom Data: 01 00 DE AD BE EF 01 8E", "Rom Data: 01 00 DE AD"))
+    expect(f, "short iButton ROM not caught")
+    f, _ = check_ibutton(ib_good.replace(
+        "Rom Data: 01 00 DE AD BE EF 01 8E",
+        "Rom Data: 01 00 DE AD BE EF XX 8E"))
+    expect(f, "non-hex iButton ROM byte not caught")
+    f, _ = check_ibutton("Filetype: Flipper iButton key\nVersion: 1\n"
+                         "Key type: DS1990\nData: 01 00 DE AD BE EF 01 8E")
+    expect(not f, "v1 iButton file falsely flagged")
+    f, _ = check_ibutton("Filetype: Flipper iButton key\nVersion: 2\n"
+                         "Protocol: DS1990")
+    expect(f, "iButton missing ROM data not caught")
+    _, w = check_ibutton(
+        ib_good.replace("Protocol: DS1990", "Protocol: DS1992"))
+    expect(any("family" in x.lower() for x in w),
+           "iButton family-code mismatch not warned")
+    f, _ = check_ibutton("Filetype: Flipper iButton key\nVersion: 2\n"
+                         "Protocol: Dallas\nRom Data: 01 00 DE AD BE EF 01 8E")
+    expect(not f, "unmapped iButton protocol falsely flagged")
 
     # ---- BadUSB ---------------------------------------------------------
     badusb_good = (

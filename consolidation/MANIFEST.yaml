@@ -71,7 +71,8 @@ workspaces:
     kind: config
     bytes_approx: null
     touches: [flipper-settings]
-    recommendation: REVIEW
+    recommendation: KEEP
+    notes: Documented placeholder system_settings.txt added 2026-08-04 (no active keys; settings live in RTC / device-written files on current firmware).
   - source: C:\Users\bugre\FlipperZero\_vendor
     kind: vendor
     bytes_approx: null

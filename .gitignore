@@ -2,6 +2,16 @@
 __pycache__/
 *.log
 .DS_Store
+node_modules/
+# Wrangler local state + dev secrets (bugreaperx)
+bugreaperx/.wrangler/
+bugreaperx/.dev.vars
 
 # Autosync runtime status (kept local, not versioned)
 consolidation/autosync.health.json
+
+# Agentic workflow: local FileStore state + local env secrets
+agentic/_local_state/
+.env
+scripts/_recordings/
+scripts/*.pyw

@@ -36,7 +36,7 @@ onto the device.
 
 This workspace ships a small, opinionated set of reference files and helpers
 so the user has something real to push on day one instead of an empty
-folder skeleton. Listed in priority order across two batches.
+folder skeleton. Listed in priority order across three batches.
 
 ### Batch 1: integration anchors
 
@@ -225,6 +225,68 @@ that an RFID-enabled workstation can detect emulated input at all, for
 smoke-testing RFID log pipelines, and for pen-test verification that
 the Flipper's RFID emulator is wired correctly.
 
+### Batch 3: canonical folder completion
+
+Every canonical SD folder in the layout at the top now ships with at least a
+documented starter. The three folders that can only be filled by real
+hardware or firmware ship a `README.md` instead of a fake file.
+
+#### `ibutton\\Audit_Trigger_Key.ibutton`
+Synthesized **DS1990** (Dallas 1-Wire) test key. The `DE AD BE EF` serial
+pattern cannot appear on a real iButton wafer, so it CANNOT impersonate any
+real key — but the ROM is structurally valid (family code `01`, correct
+CRC-8/MAXIM byte `8E` computed over the first 7 bytes), so the Flipper's
+iButton app and a reader handshake can be smoke-tested end-to-end without
+touching a real credential.
+
+#### `settings\\system_settings.txt`
+A *documented placeholder*, not active config. On current (development-
+channel) firmware, Settings → System values are stored in the MCU RTC and
+per-app SD settings are binary saved-struct files the device writes itself
+— there is no hand-authored `system_settings.txt` on modern builds. The
+legacy `system.rpc` / `system.lcd_*` text keys are listed as commented
+reference only. Change settings in the device UI; don't sync hand-written
+settings over the device's own files.
+
+#### `apps\\`, `dolphin\\`, `u2f\\`
+Compiled `.fap` binaries, the generated `.dolphin.state` (hidden file), and
+the on-device `key.u2f` file cannot be synthesized on a PC. Each folder
+ships a `README.md` explaining how to populate it correctly (app catalog /
+qFlipper for FAPs, firmware-bundled animation packs, on-device U2F
+registration).
+
+#### Full payload inventory
+
+| Folder | File | What it is |
+|---|---|---|
+| `badusb` | `Launch_BugReaperX_HUD.txt` | opens the local BugReaperX dashboard on plug-in (authorized target only) |
+| `badusb` | `Vanthryx_Panic_Lock.txt` | BugReaperX breadcrumb + `Win+L` panic lock |
+| `badusb` | `Drop_GlottalStop_Dropper.txt` | drops the on-machine auto-recorder into `%TEMP%` and runs it silently (operator's own machine only) |
+| `badusb` | `Hacker_Typer.txt` | harmless "movie hacker" typer — `geektyper.com/plain` (UberGuidoZ) |
+| `badusb` | `RickRoll_CMD_Win.txt` | `ascii.live/rick` in a maximized CMD window (UberGuidoZ) |
+| `infrared` | `Camera_Shutter.ir` | real Canon RC-6 shutter-release capture (IRDB) |
+| `infrared` | `Daikin_AC.ir` | real Daikin AC capture (power / swing) |
+| `infrared` | `Epson_Projector_Power.ir` | real Epson projector power capture |
+| `infrared` | `Nikon_Camera.ir` | real Nikon camera remote capture |
+| `infrared` | `Sony_Handycam_RMT814.ir` | real Sony RMT-814 Handycam capture |
+| `infrared` | `Universal_Power_Off.ir` | multi-brand (Samsung/Grundig/LG) power-off palette |
+| `infrared` | `AI_LG_TV_Power.ir` | LLM-synthesized LG TV power toggle (unverified) |
+| `infrared` | `AI_Roku_Home_OK.ir` | LLM-synthesized Roku Home/OK (unverified) |
+| `infrared` | `AI_Samsung_Volume.ir` | LLM-synthesized Samsung volume-up (unverified) |
+| `infrared` | `Meeting_Room_Deflector.ir` | synthesized privacy palette (Mute/Display_Off/Volume_Down) |
+| `subghz` | `Template_{315,330,390,433,868}_RAW.sub` | frequency-reference RAW test envelopes |
+| `subghz` | `AI_433_Gate_Remote.sub` | LLM-synthesized 433 MHz gate remote (unverified) |
+| `subghz` | `Byron_DB421E_Doorbell.sub` | real Byron doorbell capture |
+| `subghz` | `Chacon_54647TX_Outlet_On.sub` | real Chacon 54647TX outlet capture (keyed protocol) |
+| `subghz` | `Tesla_Charge_Port_433_AM650.sub` | real Tesla charge-port opener capture |
+| `lfrfid` | `Audit_Trigger_Badge.rfid` | impossible `DEADBEEF` EM4100 badge — audit marker |
+| `lfrfid` | `AI_HID_Prox_37bit.rfid` | LLM-synthesized HID Prox 37-bit (unverified) |
+| `lfrfid` | `AI_Indala_Prox.rfid` | LLM-synthesized Indala Prox (unverified) |
+| `lfrfid` | `AI_T5577_Emulation.rfid` | LLM-synthesized T5577 emulation (unverified) |
+| `nfc` | `Mifare_Classic_1k_Template.nfc` | structural Mifare Classic 1K test tag (BCC-valid) |
+| `nfc` | `Empty_NTAG213.nfc` / `Empty_NTAG216.nfc` | blank NTAG templates |
+| `ibutton` | `Audit_Trigger_Key.ibutton` | impossible `DEADBEEF` DS1990 test key (CRC-valid) |
+
 ## Workflow
 
 `flipper-sync.ps1` runs **both validators automatically before every
@@ -351,6 +413,270 @@ python "$env:USERPROFILE\FlipperZero\scripts\verify_flipper_files.py"
 The validator's exit code lets you wire it into a scheduled task or CI
 hook if you ever want "every BadUSB payload I write gets a header check
 before it can hit the device."
+
+## Agentic workflow: durable state + retrieval (MongoDB Atlas)
+
+`agentic/` is a small, dependency-free agent orchestration engine whose runs
+and artifacts are persisted as complex nested documents — locally by default,
+and in MongoDB Atlas when you point it at a cluster.
+
+```
+validate -> curate -> sync-plan -> report   (the "pipeline" workflow)
+```
+
+- **validate** — runs both payload validators (header check + data tests);
+  fail-fast, so broken payloads abort the pipeline before anything else.
+- **curate** — walks every canonical SD folder and indexes each payload's
+  headers, attribution, honest-limits notes, and a search blob (+ embedding)
+  into `payloads` documents keyed by file SHA-256.
+- **sync-plan** — previews and *audits* exactly what `flipper-sync.ps1`
+  would push to a plugged-in device, flagging PC-only content (e.g. `.github/`)
+  that the sync script's skip list would currently copy anyway.
+- **report** — aggregates the curated state (payloads by kind, recent runs).
+
+### Quickstart (zero dependencies — works right now)
+
+No Atlas, no pymongo, no install needed: state falls back to JSON files in
+`agentic/_local_state/` (gitignored).
+
+```powershell
+python -m agentic run pipeline     # validate -> curate -> sync-plan -> report
+python -m agentic runs             # list workflow runs
+python -m agentic show <RUN_ID>    # inspect a run's steps + outputs
+python -m agentic search "tesla"   # keyword search over curated payloads
+python -m agentic vector "camera"  # vector similarity search
+python -m agentic doctor           # backend health + counts
+```
+
+Self-test (verifies pipeline, search, vector search, and resume-after-failure):
+
+```powershell
+python scripts/test_agentic_workflow.py
+```
+
+### Moving to MongoDB Atlas (durable cloud state)
+
+1. Create a free **M0** cluster at https://www.mongodb.com/cloud/atlas
+2. **Database Access** → add a database user (read/write)
+3. **Network Access** → allow your IP (or `0.0.0.0/0` for dev)
+4. **Connect → Drivers** → copy the connection string into `.env` as
+   `MONGODB_URI` (see `.env.example`), then `pip install -r requirements.txt`
+5. `python -m agentic indexes` — creates the standard indexes + Atlas
+   Search/Vector Search indexes
+6. `python -m agentic run pipeline` — runs now persist to Atlas; every
+   command above works identically
+
+### Honest limits
+
+- **Keyword search (`search`)** uses a regular MongoDB text index on
+  `search_text` — works on the **free M0 tier**.
+- **Vector search (`vector`)** uses Atlas Vector Search (`$vectorSearch`),
+  which **requires an M10+ dedicated tier** — on M0 it reports a clear error.
+  The local FileStore implements the same interface with brute-force cosine
+  similarity, so the workflow is fully testable before you spend anything.
+- **Embeddings**: the default `feature-hash` embedder is zero-dependency but
+  *keyword-ish, not semantic* — same vocabulary ⇒ similar vectors. Set
+  `OPENAI_API_KEY` (+ `pip install openai`) for real semantic embeddings;
+  `get_embedder()` picks the OpenAI embedder automatically.
+- **Durable ≠ backup**: Atlas persists runs/artifacts, but this repo's
+  payload files remain the source of truth — the store is derived state.
+
+## Developer intelligence: delivery metrics + AI adoption
+
+Two complementary layers — a self-hosted dev-intel module inside `agentic/`
+for **this repo**, and a SaaS platform for **team/org-wide** tracking.
+
+### Self-hosted: the `devintel` workflow (agentic/)
+
+```powershell
+python -m agentic devintel         # collect git metrics + AI adoption, snapshot, show trend
+python -m agentic devintel-trend   # retrieve the stored adoption curve
+```
+
+Runs three agents (`collect-git → snapshot → devintel-report`) and persists
+one document per UTC day into `devintel_snapshots` (MongoDB Atlas or the
+local FileStore fallback), so the adoption trend accumulates over time:
+
+- **Delivery**: commit count, commits/day, files changed, lines added/
+  deleted, per-author spread.
+- **AI adoption**: heuristic detection of AI-assisted commits via trailers
+  (`Co-authored-by: ... Copilot`) and body markers (`Generated with Claude`,
+  `ai-generated`, …), with a per-tool breakdown.
+
+Honest limits (also stored in the snapshot, not just here):
+- AI detection is **heuristic on commit text** — it cannot see the author's
+  editor. A 0% reading means *no AI markers*, not *no AI was used*.
+- Delivery metrics are **git-only** (no PR/Jira/CI in this workspace), so
+  cycle time is approximated from commit timestamps.
+
+Self-test coverage: `python scripts/test_agentic_workflow.py` runs the
+`devintel` workflow and checks snapshot idempotency.
+
+### SaaS: software engineering intelligence platforms
+
+If you want org-wide delivery acceleration + AI-adoption ROI (many repos,
+PR/issue/CI data), the researched shortlist is:
+
+| Platform | AI adoption | Delivery acceleration | Pricing reality |
+|---|---|---|---|
+| **LinearB** (recommended) | 50+ AI tools (Copilot/Cursor/Claude Code), AI↔metrics correlation | DORA + gitStream PR automation, WorkerB bots | Free tier for small teams; paid scales per-seat/credits |
+| **Swarmia** | AI-assisted PR measurement, cycle-time deltas | DORA/SPACE + DevEx surveys + Signals | ~$280–430/developer/yr |
+| **Jellyfish** | AI Impact module | DORA dashboards (mostly retrospective) | Enterprise quote (~$20–50/dev/mo est.) |
+| **Faros AI** | Raw AI telemetry, token-level ROI | Enterprise data graph | Enterprise only |
+| **DX (getdx)** | DX AI module | TrueThroughput™ | Enterprise |
+| **Allstacks** | AI impact + AI-ready spec governance | Predictive delivery forecasting | Enterprise |
+| **Uplevel** | Full-SDLC AI adoption correlation | Leading indicators, GearUp sprints | Enterprise |
+
+**Why LinearB for the org-wide case:** it is the only one combining
+*delivery acceleration* (DORA + gitStream policy-as-code PR automation) with
+the broadest *AI-adoption tracking* (50+ tools), and it has a free tier —
+unlike the enterprise-only options. The dev-intel workflow in `agentic/`
+complements it: LinearB covers the org, `devintel` covers this repo with
+zero external dependencies and the same data living in your Atlas store.
+
+## Flipper AI toolkit: LLM-powered payload generation, analysis, and fixing
+
+`agentic/agents/flipper_ai.py` adds an AI layer that can **generate**,
+**analyze**, and **fix** Flipper Zero payloads using any OpenAI-compatible
+LLM — including Ornith-1.0-35B (the uncensored agentic-coding model), OpenAI
+GPT-4, or a local Ollama server.
+
+```
+generate-badusb  →  BadUSB script from a natural-language description
+analyze          →  explain what a payload does step-by-step
+generate-ir      →  IR signal file from a device description
+generate-subghz  →  SubGHz RAW file from a device description (garage door, sensor, etc.)
+generate-rfid    →  RFID emulation file from an LF badge description (EM4100, HID Prox, etc.)
+generate-nfc     →  NFC emulation file from a card description (Mifare Classic, NTAG, etc.)
+fix              →  spot issues and output a corrected payload
+chat             →  raw prompt — useful for any Flipper topic
+```
+
+### Quickstart
+
+```powershell
+# Generate a BadUSB script
+python -m agentic flipper-ai generate-badusb "open notepad and type 'Hello from Flipper!'"
+
+# Explain what a payload does
+python -m agentic flipper-ai analyze badusb/Hacker_Typer.txt
+
+# Generate an IR signal for a device
+python -m agentic flipper-ai generate-ir "Samsung TV power toggle, NEC protocol"
+
+# Generate a SubGHz RAW file (garage door, sensor, etc.)
+python -m agentic flipper-ai generate-subghz "315 MHz garage door opener" --output subghz/garage.sub
+
+# Generate an RFID emulation file (EM4100, HID Prox, etc.)
+python -m agentic flipper-ai generate-rfid "HID Prox 26-bit badge, facility 100" --key-type H10301
+
+# Generate an NFC emulation file (Mifare Classic, NTAG, etc.)
+python -m agentic flipper-ai generate-nfc "Mifare Classic 1K test card" --output nfc/test_mifare.nfc
+
+# Fix a broken payload
+python -m agentic flipper-ai fix badusb/my_script.txt --output badusb/my_script_fixed.txt
+
+# Raw chat about any Flipper topic
+python -m agentic flipper-ai chat "What SubGHz frequencies can the Flipper transmit on?"
+```
+
+### LLM backends
+
+Configure via environment variables (see `.env.example`):
+
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_BASE_URL` | `http://localhost:8000/v1` | API base URL |
+| `LLM_MODEL` | `ornith` | Model name to request |
+| `LLM_API_KEY` | `not-needed` | API key (blank for local servers) |
+
+> **Why `ornith`?** Ornith's vLLM serve command uses `--served-model-name ornith`,
+> so `ornith` is what you put in API requests. If you rename it (e.g.
+> `--served-model-name my-ornith`), set `LLM_MODEL=my-ornith`.
+
+**Works with any OpenAI-compatible endpoint** — just point `LLM_BASE_URL` at it.
+
+### Running with Ornith-1.0-35B (the recommended model)
+
+Ornith is a 35B-parameter agentic-coding model, uncensored and SOTA for
+code generation. It requires a beefy GPU (66 GB VRAM for BF16, or 24 GB
+NVFP4 on Blackwell). Serve it via Docker + vLLM, then point the toolkit at it:
+
+```powershell
+# In WSL2 (Ubuntu), after downloading the model:
+# See Ornith's QUICKSTART_DGX_SPARK.md or AGENTS.md for full setup
+./serve_ornith.sh spark-dflash
+
+# Then from this repo:
+$env:LLM_BASE_URL = "http://localhost:8000/v1"
+$env:LLM_MODEL = "ornith"
+python -m agentic flipper-ai generate-badusb "..."
+```
+
+**No GPU?** Use a smaller model via Ollama (`ollama pull qwen2.5-coder:7b`,
+then `$env:LLM_BASE_URL="http://localhost:11434/v1"`,
+`$env:LLM_MODEL="qwen2.5-coder:7b"`), or use the OpenAI API
+(`$env:LLM_BASE_URL="https://api.openai.com/v1"`,
+`$env:LLM_API_KEY="sk-..."`, `$env:LLM_MODEL="gpt-4o"`).
+
+### Zero-dependency LLM client
+
+The LLM client (`agentic/llm_client.py`) uses only Python stdlib (`urllib`),
+so the toolkit works without any pip installs. Ornith's thinking-model
+output (`<think>…</think>`) is passed through as-is — the model's reasoning
+is visible alongside its final answer.
+
+### Worker HTTP API (bugreaperx)
+
+The same agents are exposed as HTTP endpoints via the `bugreaperx`
+Cloudflare Worker, so any app or script can generate/analyze payloads via
+POST requests:
+
+```bash
+# Generate SubGHz
+curl -X POST http://localhost:8787/api/flipper-ai/generate-subghz \
+  -H 'Content-Type: application/json' \
+  -d '{"description":"433 MHz garage opener with static code"}'
+
+# Generate RFID
+curl -X POST http://localhost:8787/api/flipper-ai/generate-rfid \
+  -H 'Content-Type: application/json' \
+  -d '{"description":"EM4100 test badge","key_type":"EM4100"}'
+
+# Generate NFC
+curl -X POST http://localhost:8787/api/flipper-ai/generate-nfc \
+  -H 'Content-Type: application/json' \
+  -d '{"description":"NTAG215 blank tag","protocol":"NTAG215","uid_size":7}'
+```
+
+Full endpoint list (all under `/api/flipper-ai/`):
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/generate-badusb` | LLM-generated BadUSB script |
+| `POST` | `/analyze` | LLM payload analysis |
+| `POST` | `/generate-ir` | LLM-generated IR signal |
+| `POST` | `/generate-subghz` | LLM-generated SubGHz RAW file |
+| `POST` | `/generate-rfid` | LLM-generated RFID emulation file |
+| `POST` | `/generate-nfc` | LLM-generated NFC emulation file |
+| `POST` | `/fix` | LLM payload review & fix |
+| `POST` | `/chat` | Raw LLM prompt (JSON response) |
+| `POST` | `/chat/stream` | Raw LLM prompt (SSE streaming) |
+| `GET` | `/health` | LLM endpoint health check |
+
+Smoke tests (`scripts/smoke_test_flipper_ai.sh`) verify response structure
+and payload content headers for all generation endpoints.
+
+### Safety / responsibility
+
+- **LLM-generated payloads are untrusted by default** — always review and
+  test before running on a device.
+- **The `generate-ir` and `fix` agents add honest-limits notes**: generated
+  IR files are marked as synthesized (not captured from a real device),
+  and AI-made fixes are annotated with a `# AI-fix:` comment.
+- **Uncensored models like Ornith will comply with harmful requests.**
+  You, the operator, are the safety layer. Review all AI output before
+  deploying it.
 
 ## ESP32 devboard: Wi-Fi/BLE testing (Marauder-style)
 

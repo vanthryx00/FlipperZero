@@ -1,0 +1,8 @@
+Filetype: Flipper RFID key
+Version: 1
+Frequency: 125000
+Bit Count: 64
+Key type: T5577
+Key: DE AD BE EF CA
+Data: 
+# honest-limits: synthesized/test badge, NOT a real credential

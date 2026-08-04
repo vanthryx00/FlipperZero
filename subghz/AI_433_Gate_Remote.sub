@@ -1,0 +1,8 @@
+Filetype: Flipper SubGhz RAW File
+Version: 1
+Frequency: 433920000
+Preset: FuriHalSubGhzPresetOok650Async
+Protocol: RAW
+RAW_Data: 800 -700 400 -300 600 -500 1000 -900 200 -150 1400 -1200 300 -250 700 -600 900 -800 1200 -1000 500 -400 1100 -900 400 -300 800 -600 1000 -800 700 -500 1300 -1100 200 -150 600 -450 1000 -800 300 -200 900 -700 1100 -900
+
+honest-limits: This is a synthesized/generated signal — NOT captured from a real device — and must be verified before use.
