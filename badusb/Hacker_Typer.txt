@@ -10,6 +10,10 @@ REM
 REM Opens a harmless website and types like a hacker
 REM By UberGuidoZ
 REM
+REM HID VID:PID spoofing line -- presents as a Logitech Unifying
+REM receiver (real device VID:PID) and pins the keyboard layout.
+ID 046d:c31c
+REM
 DELAY 1500
 GUI r
 DELAY 1000
@@ -31,7 +35,8 @@ LEFTARROW
 DELAY 1500
 STRING 3
 DELAY 1500
-SHIFT
+REM bare SHIFT removed -- a modifier with no key is a NOP on the
+REM device (it does not latch onto the next STRING). No behavior lost.
 DELAY 1500
 STRING 1
 DELAY 1500

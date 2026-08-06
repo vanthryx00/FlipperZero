@@ -12,6 +12,10 @@ REM Author: Nando Kools | NanKooDev
 REM Description: RickRoll in Windows Command Prompt
 REM Target:	Windows
 REM
+REM HID VID:PID spoofing line -- presents as a Logitech Unifying
+REM receiver (real device VID:PID) and pins the keyboard layout.
+ID 046d:c31c
+REM
 GUI r
 DELAY 1000
 STRING curl http://ascii.live/rick

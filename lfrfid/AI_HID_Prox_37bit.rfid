@@ -4,5 +4,5 @@ Frequency: 125000
 Bit Count: 37
 Key type: H10302
 Key: DE AD BE EF CA
-Data: 0F A4 C8
+Data: DE AD BE EF CA
 # honest-limits: synthesized/test badge, NOT a real credential

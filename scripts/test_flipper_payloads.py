@@ -73,9 +73,11 @@ NEC_FAMILY = {"nec", "necext", "nec42", "nec42ext"}
 # Parsed-protocol address:/command: byte widths we assert on. Current
 # firmware stores EVERY parsed protocol's address:/command: as 4-byte
 # little-endian hex fields (RC5/RC6 included -- see the canonical IRDB
-# files, which use e.g. 'command: 0C 00 00 00' for RC5). The old
-# packed-single-value convention is not used on modern firmware.
-BYTE_WIDTHS = {p: 4 for p in (NEC_FAMILY | {"rc5", "rc5ext", "rc6"})}
+# files, which use e.g. 'command: 0C 00 00 00' for RC5). SIRC/SIRC15
+# (Sony) and Samsung32 are stored the same way on modern firmware. The
+# old packed-single-value convention is not used on modern firmware.
+BYTE_WIDTHS = {p: 4 for p in (
+    NEC_FAMILY | {"rc5", "rc5ext", "rc6", "sirc", "sirc15", "samsung32"})}
 
 # iButton ROM is 8 bytes: family code + 6 serial bytes + CRC-8/MAXIM over
 # the first 7 bytes (1-Wire spec; matches the Flipper's dallas_common.c and
@@ -756,6 +758,20 @@ def selftest() -> list[str]:
     expect(not f, f"RC5 4-byte record flagged: {f}")
     f, _ = check_ir(ir_rc5.replace("command: 0C 00 00 00", "command: 0C"))
     expect(f, "narrow RC5 command not caught")
+    # SIRC/SIRC15/Samsung32 are stored as 4-byte little-endian fields on
+    # modern firmware too (Sony address 07 00 00 00, Handycam 15-bit
+    # address B9 00 00 00, Samsung 07 00 00 00) -- must not warn/fail.
+    for proto, addr in (("SIRC", "07 00 00 00"),
+                        ("SIRC15", "B9 00 00 00"),
+                        ("Samsung32", "07 00 00 00")):
+        ir_wide = (
+            f"name: Test\ntype: parsed\nprotocol: {proto}\n"
+            f"address: {addr}\ncommand: 01 00 00 00")
+        f, _ = check_ir(ir_wide)
+        expect(not f, f"{proto} 4-byte record flagged: {f}")
+        f, _ = check_ir(ir_wide.replace("command: 01 00 00 00",
+                                        "command: 01"))
+        expect(f, f"narrow {proto} command not caught")
 
     # ---- RFID -----------------------------------------------------------
     rfid_good = (

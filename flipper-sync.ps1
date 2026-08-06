@@ -7,7 +7,7 @@
     (header check) then scripts\test_flipper_payloads.py (data tests). If
     either fails, the sync aborts (exit code 3) without touching the device.
 
-    Then scans every removable drive (C-H) for the canonical Flipper SD-card
+    Then scans every removable drive (C-Z) for the canonical Flipper SD-card
     marker pair (apps\ AND subghz\ as folders). When found, copies the
     workspace contents onto the device's SD card root. Skips PC-only
     content: _vendor\ (local qFlipper cache), scripts\ and
@@ -58,7 +58,8 @@ function Test-IsFlipperDrive {
 }
 
 function Find-FlipperDrive {
-    foreach ($letter in 'C','D','E','F','G','H') {
+    # 67..90 == ASCII codes 'C'..'Z' (the .. range operator is int-only in PS 5.1).
+    foreach ($letter in [char[]](67..90)) {
         $drive = "${letter}:\"
         if (-not (Test-Path -LiteralPath $drive)) { continue }
         if (Test-IsFlipperDrive -Path $drive) {
@@ -146,7 +147,7 @@ Invoke-WorkspaceValidation
 
 $flipper = Find-FlipperDrive
 if (-not $flipper) {
-    Write-Host "Flipper Zero not detected on C:\, D:\, E:\, F:\, G:\, H:\" -ForegroundColor Yellow
+    Write-Host "Flipper Zero not detected on any drive (C:\ through Z:\)." -ForegroundColor Yellow
     Write-Host "Make sure the device is plugged in and in USB MSD mode (Settings → Storage → USB)." -ForegroundColor Yellow
     exit 1
 }

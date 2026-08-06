@@ -4,5 +4,5 @@ Frequency: 125000
 Bit Count: 64
 Key type: T5577
 Key: DE AD BE EF CA
-Data: 
+Data: DE AD BE EF CA
 # honest-limits: synthesized/test badge, NOT a real credential
