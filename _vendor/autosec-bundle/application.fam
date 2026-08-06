@@ -1,0 +1,12 @@
+App(
+    appid="autosec_tool",
+    name="AutoSec Tool",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="autosec_tool_app",
+    stack_size=2 * 1024,
+    fap_category="Tools",
+    fap_description="Automotive security research tool for signal analysis and logging.",
+    fap_author="Manus",
+    fap_weburl="https://github.com/manus-ai",
+    fap_version="1.0",
+)

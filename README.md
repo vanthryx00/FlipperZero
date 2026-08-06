@@ -355,10 +355,33 @@ Done. Unplug and reboot the Flipper to pick up your files.
 |---|---|
 | `qFlipper.ini` | `%APPDATA%\\Flipper Devices Inc\\qFlipper.ini` (vendor app config) |
 | `logs\\qFlipper-20260530-*.txt` | `%LOCALAPPDATA%\\qFlipper\\` (qFlipper update logs) |
+| `autosec-bundle\\` | archived third-party "AutoSec" research platform bundle (reference only) |
 
 qFlipper is the official cross-platform firmware updater. We keep its
 config + logs for diagnostics so you can answer "did the previous flash
 succeed?" without digging around `%APPDATA%`.
+
+#### `autosec-bundle\\` — archived research-platform bundle (reference only)
+
+An archived copy of a third-party AI-generated project bundle that was
+uploaded as `Creating a Flipper Zero Program: Ethical and Legal Guidelines.zip`
+(67 files). It contains Flipper FAP scaffolding, ESP32 sketches, a web-app
+snapshot, Python tooling, and docs — **reference material only**, kept under
+`_vendor\\` so `flipper-sync.ps1` never pushes it to the device and neither
+validator scans it.
+
+Two files were **deliberately excluded** during archiving
+(`automotive_pentesting_guide.md` and the "Advanced Vulnerability
+Demonstration Guide") because they contain step-by-step instructions for
+attacking real vehicles (CAN injection/DoS, rolling-code grab-and-jam, WiFi
+deauth, gateway bypass). The defensive/educational content (rolling-code
+explainer, ISO 21434 / SecOC primer) was kept.
+
+Honest limits: the bundled `VERIFICATION_REPORT.txt` is AI self-certification
+("ALL SYSTEMS VERIFIED"), **not** real build verification — the C apps are UI
+scaffolding that was never compiled against actual firmware. Treat everything
+in the bundle as untrusted until independently reviewed. See
+`_vendor\\autosec-bundle\\README.md` for the full inventory and notes.
 
 > _Note: the sync script skips any folder named `_vendor` at **any depth**,
 > not just the workspace root. So if you (or a tool) ever creates
@@ -721,6 +744,23 @@ testing rig, with the Flipper acting as the screen and controller.
 - Bluetooth: BLE sniffing, card-skimmer detection, Airtag sniff.
 - Lab-only extras (keep them in your lab): beacon spam, evil portal,
   karma, AP-clone spam.
+
+### Archived integration guides
+
+Three reference guides from the archived `_vendor/autosec-bundle/` match
+this section and are worth reading alongside it (PC-side only, never
+synced to the device):
+
+- `_vendor/autosec-bundle/ESP32 Marauder Integration Guide_ WiFi & Bluetooth Auditing.md`
+  — Marauder firmware flashing (web flasher / `esptool.py` / from the
+  Flipper), GPIO wiring, AP-scan/deauth/PMKID workflows, BLE scanning.
+- `_vendor/autosec-bundle/Hardware Integration Guide_ ESP32 CAN Bus + Flipper Zero.md`
+  — ESP32 + CAN-transceiver + OBD-II wiring for CAN sniffing (passive
+  first; injection only on authorized systems).
+- `_vendor/autosec-bundle/esp32_can_autosec.ino` — the matching ESP32
+  sketch (dual-use RX/TX; treat as untrusted until reviewed).
+
+See `_vendor/autosec-bundle/README.md` for provenance and honest limits.
 
 ### Legal line
 

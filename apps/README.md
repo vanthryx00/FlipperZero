@@ -21,3 +21,19 @@ To populate from a PC:
 
 Do **not** mix `.fap` files built for different firmware channels in one
 sync — replace the whole `apps/` content per channel instead.
+
+## Writing your own apps: reference
+
+To develop your own FAP (C source + `application.fam` manifest, view
+lifecycle, build commands), an archived third-party reference is available
+in this workspace:
+
+- `_vendor/autosec-bundle/flipper_zero_development.md` — accurate FAP
+  development reference (app structure, memory management, view dispatcher,
+  manifests, `./fbt` build/flash commands).
+- `_vendor/autosec-bundle/application.fam` + the `*_tool.c` / `*_monitor.c`
+  sources — worked manifest + UI-scaffolding examples. **Reference only:**
+  the bundled code was never compiled against real firmware (see
+  `_vendor/autosec-bundle/README.md` honest limits).
+
+Build a real FAP from the flipper-firmware tree, not from the archive.

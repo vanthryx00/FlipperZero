@@ -1,0 +1,6 @@
+This file is a placeholder for the ESP32 Marauder firmware. 
+
+**Please download the latest `esp32_marauder.bin` for your specific ESP32 board from the official ESP32Marauder GitHub releases page:**
+https://github.com/justcallmekoko/ESP32Marauder/releases
+
+Refer to `marauder_integration_guide.md` for flashing instructions.
