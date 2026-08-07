@@ -2,7 +2,11 @@ Filetype: Flipper RFID key
 Version: 1
 Frequency: 125000
 Bit Count: 26
-Key type: Indala
-Key: DE AD BE EF CA
-Data: DE AD BE EF CA
+Key type: Indala26
+Key: DE AD BE EF
+Data: DE AD BE EF
 # honest-limits: synthesized/test badge, NOT a real credential
+# Re-keyed to the real Flipper protocol name 'Indala26' (Indala 26-bit).
+# Decoded data is 4 bytes (INDALA26_DECODED_DATA_SIZE); the firmware
+# recomputes Wiegand parity + checksum from the 3 byte FC/card payload
+# on the wire. Any 4-byte value loads; this keeps the DEADBEEF theme.

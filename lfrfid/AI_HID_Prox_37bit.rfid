@@ -2,7 +2,12 @@ Filetype: Flipper RFID key
 Version: 1
 Frequency: 125000
 Bit Count: 37
-Key type: H10302
-Key: DE AD BE EF CA
-Data: DE AD BE EF CA
+Key type: HIDProx
+Key: 00 DE AD BE EF CA
+Data: 00 DE AD BE EF CA
 # honest-limits: synthesized/test badge, NOT a real credential
+# Re-keyed to the real Flipper protocol name 'HIDProx' (generic HID
+# Proximity). Decoded data is 6 bytes (HID_DECODED_DATA_SIZE); byte 0 =
+# 0x00 makes the firmware decode the on-wire size header as 37-bit
+# (protocol_hid_generic.c), matching the Bit Count above. Any 6-byte
+# value loads; this one keeps the DEADBEEF placeholder theme.

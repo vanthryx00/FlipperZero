@@ -93,8 +93,25 @@ IBUTTON_FAMILY_BY_NAME = {
     "DS1990": 0x01, "DS1992": 0x08, "DS1996": 0x0C, "DS1971": 0x14,
 }
 
+# Decoded-data byte counts per Flipper key type, from the firmware's own
+# protocol registry (flipperzero-firmware lib/lfrfid/protocols/*.c, dev):
+#   EM4100   EM4100_DECODED_DATA_SIZE = 5
+#   H10301   H10301_DECODED_DATA_SIZE = 3  (HID 26-bit)
+#   Indala26 INDALA26_DECODED_DATA_SIZE = 4
+#   HIDProx  HID_DECODED_DATA_SIZE = 6      (generic HID Proximity)
+# lfrfid_dict_file.c reads EXACTLY this many bytes from 'Data:', so a
+# wrong count fails to load on the device. T5577 is deliberately absent:
+# it is a chip type, not a key protocol (lfrfid_protocols.c has no T5577
+# entry) -- T5577-clone files must name the protocol being emulated.
+RFID_DATA_BYTES = {
+    "EM4100": 5,
+    "H10301": 3,
+    "INDALA26": 4,
+    "HIDPROX": 6,
+}
+
 # EM4100 stores the 40-bit ID as 5 bytes (EM4100_DECODED_DATA_SIZE).
-EM4100_DATA_BYTES = 5
+EM4100_DATA_BYTES = RFID_DATA_BYTES["EM4100"]
 EM4100_CARRIER_HZ = 125_000
 # EM4100 on-wire frame layout (standard spec; matches the Flipper's
 # encoder in lib/lfrfid/protocols/protocol_em4100.c):
@@ -510,6 +527,12 @@ def check_rfid(text: str) -> tuple[list[str], list[str]]:
                 f"EM4100: Bit Count is {kv.get('bit count')}, expected 64 "
                 f"(the on-wire frame is {EM4100_FRAME_BITS} bits for a "
                 f"{EM4100_DATA_BYTES}-byte ID)")
+    elif key_type in RFID_DATA_BYTES:
+        expected = RFID_DATA_BYTES[key_type]
+        if len(data_toks) != expected:
+            fails.append(
+                f"{key_type}: expected {expected} bytes of decoded data, "
+                f"got {len(data_toks)}")
     else:
         warns.append(
             f"no byte-count expectation registered for Key type {key_type!r}")

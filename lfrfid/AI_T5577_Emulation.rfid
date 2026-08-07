@@ -2,7 +2,12 @@ Filetype: Flipper RFID key
 Version: 1
 Frequency: 125000
 Bit Count: 64
-Key type: T5577
+Key type: EM4100
 Key: DE AD BE EF CA
 Data: DE AD BE EF CA
 # honest-limits: synthesized/test badge, NOT a real credential
+# 'T5577' is a CHIP type, not a Flipper key protocol -- lfrfid files must
+# name the protocol being emulated (lfrfid_protocols.c has no T5577
+# entry). Re-keyed to EM4100 (5 bytes, 40-bit ID): T5577 chips are the
+# common media for EM4100 clones, and EM4100 is fully validated by the
+# workspace (on-wire frame rebuild + parity). DEADBEEF placeholder data.
