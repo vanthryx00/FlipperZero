@@ -610,16 +610,19 @@ Configure via environment variables (see `.env.example`):
 | Variable | Default | Description |
 |---|---|---|
 | `LLM_BASE_URL` | `http://localhost:8000/v1` | API base URL |
-| `LLM_MODEL` | `ornith` | Model name to request |
+| `LLM_MODEL` | `nousresearch/hermes-4-70b` | Model name to request |
 | `LLM_API_KEY` | `not-needed` | API key (blank for local servers) |
 
-> **Why `ornith`?** Ornith's vLLM serve command uses `--served-model-name ornith`,
-> so `ornith` is what you put in API requests. If you rename it (e.g.
-> `--served-model-name my-ornith`), set `LLM_MODEL=my-ornith`.
+A repo-root `.env` is honored automatically (`agentic/llm_client.py` calls
+`load_dotenv()`), so you can override any of these without touching shell
+state. The shipped default model is `nousresearch/hermes-4-70b`; earlier
+workspace docs referenced `ornith` (Ornith's vLLM serve command uses
+`--served-model-name ornith`, so that string is what you'd put in API
+requests if you run Ornith — just set `LLM_MODEL=ornith`).
 
 **Works with any OpenAI-compatible endpoint** — just point `LLM_BASE_URL` at it.
 
-### Running with Ornith-1.0-35B (the recommended model)
+### Running with Ornith-1.0-35B (a strong local option)
 
 Ornith is a 35B-parameter agentic-coding model, uncensored and SOTA for
 code generation. It requires a beefy GPU (66 GB VRAM for BF16, or 24 GB

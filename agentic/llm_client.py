@@ -17,9 +17,12 @@ import json
 import os
 from typing import Any
 
+from .store import load_dotenv  # honor repo-root .env (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL)
+
+load_dotenv()
 
 _DEFAULT_BASE_URL = "http://localhost:8000/v1"
-_DEFAULT_MODEL = "ornith"
+_DEFAULT_MODEL = "nousresearch/hermes-4-70b"
 _DEFAULT_API_KEY = "not-needed"
 
 

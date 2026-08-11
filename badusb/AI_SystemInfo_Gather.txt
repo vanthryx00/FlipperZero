@@ -1,0 +1,33 @@
+REM Purpose: Gather basic system info and save to Desktop.
+REM Author: Hermes 4
+REM Target OS: Windows
+REM Note: Verify before running. This script opens visible CMD windows.
+ID 046d:c31c
+DELAY 2000
+GUI r
+STRING cmd.exe
+ENTER
+DELAY 500
+STRING hostname
+ENTER
+DELAY 500
+STRING ver
+ENTER
+DELAY 500
+STRING ipconfig
+ENTER
+DELAY 1000
+STRING echo Hostname: %COMPUTERNAME% > "%USERPROFILE%\Desktop\sysinfo.txt"
+ENTER
+DELAY 500
+STRING echo Windows Version: %windir%\system32\vercls.exe >> "%USERPROFILE%\Desktop\sysinfo.txt"
+ENTER
+DELAY 500
+STRING echo IP Configuration: >> "%USERPROFILE%\Desktop\sysinfo.txt"
+ENTER
+DELAY 500
+STRING ipconfig >> "%USERPROFILE%\Desktop\sysinfo.txt"
+ENTER
+DELAY 1000
+STRING exit
+ENTER
