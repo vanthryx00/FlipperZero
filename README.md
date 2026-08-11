@@ -287,6 +287,37 @@ registration).
 | `nfc` | `Empty_NTAG213.nfc` / `Empty_NTAG216.nfc` | blank NTAG templates |
 | `ibutton` | `Audit_Trigger_Key.ibutton` | impossible `DEADBEEF` DS1990 test key (CRC-valid) |
 
+## ⏳ Remaining work: verify AI-synthesized payloads on real hardware
+
+Everything in the workspace passes the PC-side header validator and data
+tests (0 failures), but the following **LLM-synthesized** files were never
+tested on a physical device. "Unverified" = structurally valid + loadable,
+but nobody has confirmed the signal actually works against the target gear.
+
+Since 2026-08-11 the `flipper-ai` generate commands self-validate their
+output (see the "Every generated payload is self-validated" section below),
+so **newly generated** AI payloads are structurally guaranteed — but they
+still need the same on-hardware pass before you trust them in the field.
+
+Verify each on the real hardware, tick it off, and re-commit (the same
+checklist is tracked in `consolidation/CURATED.md`):
+
+| File | What to verify | How |
+| --- | --- | --- |
+| `subghz/AI_433_Gate_Remote.sub` | plays out on the Sub-GHz radio at 433.92 MHz | Sub-GHz → Read RAW → replay → check with an SDR receiver
+| `infrared/AI_LG_TV_Power.ir` | toggles an actual LG TV | point at the TV → Send → confirm power on/off
+| `infrared/AI_Roku_Home_OK.ir` | Home / OK on an actual Roku | point at the Roku → Send → confirm UI response
+| `infrared/AI_Samsung_Volume.ir` | volume up on an actual Samsung TV | point at the TV → Send → confirm volume changes
+| `lfrfid/AI_HID_Prox_37bit.rfid` | reads as a 37-bit HID Prox on an LF reader | emulate near an HID reader → confirm raw Wiegand bits
+| `lfrfid/AI_Indala_Prox.rfid` | reads as Indala on an LF reader | emulate near an Indala reader → confirm decode
+| `lfrfid/AI_T5577_Emulation.rfid` | EM4100-style replay via T5577 | emulate near a generic EM4100 reader → confirm UID
+| `badusb/AI_SystemInfo_Gather.txt` | runs cleanly on a target Windows box | authorized machine only → plug in → confirm sysinfo.txt lands on Desktop
+
+> When each is confirmed working, flip its row to ✅ (or `DELETE` if it never
+> works) and add a dated line to the decisions log in `CURATED.md`. Until
+> then, the build is **done except for this hardware pass** — no PC-side
+> step can finish it.
+
 ## Workflow
 
 `flipper-sync.ps1` runs **both validators automatically before every
