@@ -22,8 +22,8 @@ Legend: **KEEP** = leave as-is · **MERGE** = bring clean files into
 - [x] `scripts/`                             → **KEEP**
 - [x] `settings/`                            → **KEEP** (starter `system_settings.txt` added + inspected)
 - [x] `_vendor/`                             → **REVIEW_VENDOR** (keep as vendored copy; do NOT push to device)
-- [x] `flipper-sync.ps1`                     → **ARCHIVE** (replaced by `autosync.ps1`)
-- [x] `flipper-sync.cmd`                     → **ARCHIVE** (wrapper of above)
+- [x] `flipper-sync.ps1`                     → **KEEP** (device-sync tool; `autosync.ps1` only git-pulls the repo, it does NOT replace this)
+- [x] `flipper-sync.cmd`                     → **KEEP** (wrapper of above; keep both for the device-sync workflow)
 
 ---
 
@@ -51,6 +51,7 @@ silently do nothing until you reconcile.
 | 2026-08-04 | ibutton, apps, dolphin, u2f | KEEP | Folder completion: CRC-valid DS1990 test key + per-folder READMEs |
 | 2026-08-02 | _vendor | REVIEW_VENDOR | qFlipper cache; keep local, never sync to device |
 | 2026-08-02 | flipper-sync.ps1 / .cmd | ARCHIVE | Superseded by consolidation/autosync.ps1 |
+| 2026-08-11 | flipper-sync.ps1 / .cmd | KEEP | Decision **reverted** — autosync.ps1 only git-pulls the repo; flipper-sync.ps1 is the only device-push tool (README workflow depends on it) |
 
 ## After curation
 

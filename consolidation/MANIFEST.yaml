@@ -79,19 +79,19 @@ workspaces:
     touches: [third-party]
     recommendation: REVIEW_VENDOR
   - source: C:\Users\bugre\FlipperZero\flipper-sync.ps1
-    kind: legacy-script
+    kind: script
     bytes_approx: ~?
     touches: [ps1]
     duplicate_of: null
-    recommendation: ARCHIVE
-    notes: Legacy sync script. Replaced by autosync.ps1 — see CURATED.md.
+    recommendation: KEEP
+    notes: Device-sync tool (payloads -> Flipper over USB MSD). KEEP — autosync.ps1 only git-pulls the repo and does NOT replace this (decision reverted 2026-08-11, see CURATED.md).
   - source: C:\Users\bugre\FlipperZero\flipper-sync.cmd
-    kind: legacy-script
+    kind: script
     bytes_approx: ~?
     touches: [cmd]
     duplicate_of: null
-    recommendation: ARCHIVE
-    notes: Same as above (.cmd wrapper).
+    recommendation: KEEP
+    notes: Wrapper of flipper-sync.ps1; KEEP with the .ps1 (decision reverted 2026-08-11).
 
 auto_sync:
   enabled: false
