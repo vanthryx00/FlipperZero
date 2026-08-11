@@ -622,6 +622,24 @@ requests if you run Ornith — just set `LLM_MODEL=ornith`).
 
 **Works with any OpenAI-compatible endpoint** — just point `LLM_BASE_URL` at it.
 
+### Every generated payload is self-validated before it's written
+
+The generate commands (`generate-badusb`, `generate-ir`, `generate-subghz`,
+`generate-rfid`, `generate-nfc`) now run the generated content through the
+**exact same validators that gate `flipper-sync`** (`verify_flipper_files.py`
+header checks + `test_flipper_payloads.py` data checks). If the output fails,
+the concrete validator findings are fed back to the LLM and it retries (up to
+4 attempts). Only a payload that passes is written to disk:
+
+```
+$ python -m agentic flipper-ai generate-subghz "315 MHz garage door opener" --output subghz/garage.sub
+[OK] Written to subghz/garage.sub (9240 chars)
+[OK] payload validation passed (attempt 2)
+```
+
+If it still fails after retries, the file is **not written** and the validator
+issues are printed — a broken payload can never silently land on your device.
+
 ### Running with Ornith-1.0-35B (a strong local option)
 
 Ornith is a 35B-parameter agentic-coding model, uncensored and SOTA for

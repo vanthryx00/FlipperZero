@@ -319,6 +319,20 @@ def _cmd_flipper_ai(args: argparse.Namespace) -> int:
     elif cmd == "chat":
         print(output.get("reply", ""))
 
+    # Report the self-validation result for generate commands. A failed
+    # validation returns a non-zero exit code so scripts/CI can detect it.
+    if cmd.startswith("generate-") and "validation" in output:
+        val = output["validation"]
+        attempts = val.get("attempts", 1)
+        if val.get("passed"):
+            print(f"[OK] payload validation passed (attempt {attempts})")
+        else:
+            print(f"[FAIL] payload validation failed after {attempts} attempt(s) — "
+                  f"file was NOT written")
+            for issue in val.get("issues", [])[:8]:
+                print(f"      - {issue}")
+            return 1
+
     return 0 if run["status"] == "completed" else 1
 
 

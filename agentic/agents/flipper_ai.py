@@ -27,7 +27,9 @@ Workflow:
 
 from __future__ import annotations
 
+import importlib.util
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +42,176 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def _llm() -> LLMClient:
     """Return a configured LLM client. Prefers env vars, falls back to defaults."""
     return LLMClient()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Self-validation: reuse the workspace payload validators so generated files
+# must pass the exact same checks that gate flipper-sync to the device.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_SCRIPTS_DIR = REPO_ROOT / "scripts"
+
+
+def _strip_markdown_fences(text: str) -> str:
+    """Extract raw payload content from a model reply that may be wrapped in
+    ```-style markdown fences (with an optional language marker) and/or have
+    a prose preamble before the file. parse_kv ignores non-colon lines, so
+    unfenced preamble/fence lines would otherwise pass validation and get
+    written into the payload file.
+    """
+    lines = text.splitlines()
+    fence_idx = [i for i, ln in enumerate(lines) if ln.strip().startswith("```")]
+    if len(fence_idx) >= 2:
+        # Model wrapped the file in a code block: take the inner content.
+        start, end = fence_idx[0], fence_idx[-1]
+        return "\n".join(lines[start + 1:end]).strip()
+    # No complete fence pair: drop stray fence markers, keep the rest.
+    return "\n".join(ln for ln in lines if not ln.strip().startswith("```")).strip()
+
+
+_VALIDATOR_MODS: dict[str, Any] | None = None
+
+
+def _load_scripts_modules() -> dict[str, Any]:
+    """Import scripts/verify_flipper_files.py and scripts/test_flipper_payloads.py
+    as plain modules (they are scripts, not a package). Returns both.
+    """
+    global _VALIDATOR_MODS
+    if _VALIDATOR_MODS is not None:
+        return _VALIDATOR_MODS
+
+    loaded: dict[str, Any] = {}
+    for name in ("verify_flipper_files", "test_flipper_payloads"):
+        path = _SCRIPTS_DIR / f"{name}.py"
+        if not path.is_file():
+            raise RuntimeError(f"validator module not found: {path}")
+        spec = importlib.util.spec_from_file_location(name, path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"cannot load validator module: {path}")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+        loaded[name] = mod
+    _VALIDATOR_MODS = loaded
+    return loaded
+
+
+# kind -> (header-validator fn, data-checker fn). Both return (issues, notes).
+_VALIDATOR_FNS: dict[str, tuple[str, str]] = {
+    "badusb": ("validate_badusb", "check_badusb"),
+    "ir": ("validate_ir", "check_ir"),
+    "subghz": ("validate_subghz", "check_subghz"),
+    "rfid": ("validate_rfid", "check_rfid"),
+    "nfc": ("validate_nfc", "check_nfc"),
+}
+
+# Concrete, validator-clean examples appended to the correction prompt so the
+# model can see the exact expected formatting instead of guessing from prose.
+_FORMAT_EXAMPLES: dict[str, str] = {
+    "subghz": (
+        "Exact expected .sub format (RAW_Data MUST alternate strictly positive/negative "
+        "timings, start positive, no zero values):\n"
+        "Filetype: Flipper SubGhz RAW File\n"
+        "Version: 1\n"
+        "Frequency: 315000000\n"
+        "Preset: FuriHalSubGhzPresetOok650Async\n"
+        "Protocol: RAW\n"
+        "RAW_Data: 350 -300 450 -400 700 -600 350 -300 450 -400 700 -600 350 -300 450 -400 700 -600 350 -300 450 -400 700 -600\n"
+        "honest-limits: synthesized signal, NOT captured from a real device"
+    ),
+    "nfc": (
+        "Exact expected Mifare Classic 1K .nfc layout (each Block line is exactly 16 "
+        "space-separated 2-hex-digit bytes; UID in header must match Block 0; "
+        "BCC in Block 0 byte 4 = XOR of the 4 UID bytes):\n"
+        "Filetype: Flipper NFC device\n"
+        "Version: 4\n"
+        "Device type: Mifare Classic\n"
+        "UID: 04 DE AD BE\n"
+        "ATQA: 04 44\n"
+        "SAK: 08\n"
+        "Mifare Classic type: 1K\n"
+        "Data format version: 1\n"
+        "Block 0: 04 DE AD BE C9 08 04 44 62 63 64 65 66 67 68 69\n"
+        "Block 1: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n"
+        "Block 2: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n"
+        "Block 3: FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF\n"
+        "(continue all 64 blocks; sector trailers at blocks 3,7,11,...,63)"
+    ),
+}
+
+
+def _validate_generated(kind: str, content: str) -> tuple[list[str], list[str]]:
+    """Run both validator layers on generated content.
+    Returns (issues, notes): issues are hard failures that block a sync.
+    """
+    mods = _load_scripts_modules()
+    header_fn, data_fn = _VALIDATOR_FNS[kind]
+    issues: list[str] = []
+    notes: list[str] = []
+    for mod_name, fn_name in (("verify_flipper_files", header_fn),
+                              ("test_flipper_payloads", data_fn)):
+        fn = getattr(mods[mod_name], fn_name)
+        i, n = fn(content)
+        issues.extend(i)
+        notes.extend(n)
+    return issues, notes
+
+
+def _generate_with_validation(
+    ctx: AgentContext,
+    *,
+    kind: str,
+    prompt: str,
+    system: str,
+    max_tokens: int = 4096,
+    max_attempts: int = 4,
+) -> tuple[str, dict[str, Any]]:
+    """Generate a payload, then validate it with the workspace checkers.
+    On failure, feed the concrete issues back to the LLM and retry (bounded).
+    Returns (content, report) where report carries attempts/issues/passed.
+    """
+    client = _llm()
+    ctx.log(f"calling {client.model} @ {client.base_url} for {kind} generation")
+
+    content = ""
+    report: dict[str, Any] = {
+        "attempts": 0, "passed": False, "issues": [], "notes": [], "model": client.model,
+    }
+    for attempt in range(1, max_attempts + 1):
+        ctx.log(f"{kind}: generation attempt {attempt}/{max_attempts}")
+        content = client.chat(prompt, system=system, max_tokens=max_tokens)
+        content = _strip_markdown_fences(content)
+        issues, notes = _validate_generated(kind, content)
+        report["attempts"] = attempt
+        report["notes"] = notes
+        if not issues:
+            report["passed"] = True
+            report["issues"] = []
+            ctx.log(f"{kind}: validation passed on attempt {attempt}")
+            break
+        report["issues"] = issues
+        ctx.log(f"{kind}: validation failed with {len(issues)} issue(s)")
+        if attempt >= max_attempts:
+            break
+        # Feed the concrete validator output back so the model can self-correct.
+        detail = "\n".join(f"- {i}" for i in issues[:20])
+        example = _FORMAT_EXAMPLES.get(kind, "")
+        example_block = (
+            f"\n\nExact expected format (follow this precisely):\n{example}"
+            if example else ""
+        )
+        prompt = (
+            f"Your previous output failed validation. Fix ALL of these issues and "
+            f"output ONLY the corrected raw file content — no markdown fences, no "
+            f"explanations, no preamble.\n\n"
+            f"Validator findings:\n{detail}"
+            f"{example_block}\n\n"
+            f"Original request:\n{prompt}"
+        )
+
+    if not report["passed"]:
+        ctx.log(f"{kind}: giving up after {max_attempts} attempts — output would not sync")
+    return content, report
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -227,26 +399,30 @@ def _generate_badusb(ctx: AgentContext) -> dict[str, Any]:
         f"Output ONLY the raw script — no markdown, no explanation."
     )
 
-    client = _llm()
-    ctx.log(f"calling {client.model} @ {client.base_url} for BadUSB generation")
-    script = client.chat(prompt, system=SYSTEM_BADUSB, max_tokens=4096)
+    script, validation = _generate_with_validation(
+        ctx, kind="badusb", prompt=prompt, system=SYSTEM_BADUSB)
 
     output_path = ctx.inputs.get("output_path", "").strip()
-    if output_path:
+    written = False
+    if output_path and validation["passed"]:
         out = Path(output_path)
         if not out.is_absolute():
             out = REPO_ROOT / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(script, encoding="utf-8")
+        written = True
         ctx.log(f"wrote {len(script)} chars to {out}")
+    elif output_path:
+        ctx.log(f"NOT written to {output_path}: generated script failed validation")
 
     return {
         "description": description,
         "target_os": target_os,
         "script": script,
         "chars": len(script),
-        "output_path": output_path or None,
-        "model": client.model,
+        "output_path": output_path if written else None,
+        "validation": validation,
+        "model": validation["model"],
     }
 
 
@@ -336,18 +512,21 @@ def _generate_ir(ctx: AgentContext) -> dict[str, Any]:
         f"Output ONLY the raw .ir file content — no markdown, no explanation."
     )
 
-    client = _llm()
-    ctx.log(f"calling {client.model} @ {client.base_url} for IR generation")
-    ir_content = client.chat(prompt, system=SYSTEM_IR, max_tokens=4096)
+    ir_content, validation = _generate_with_validation(
+        ctx, kind="ir", prompt=prompt, system=SYSTEM_IR)
 
     output_path = ctx.inputs.get("output_path", "").strip()
-    if output_path:
+    written = False
+    if output_path and validation["passed"]:
         out = Path(output_path)
         if not out.is_absolute():
             out = REPO_ROOT / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(ir_content, encoding="utf-8")
+        written = True
         ctx.log(f"wrote {len(ir_content)} chars to {out}")
+    elif output_path:
+        ctx.log(f"NOT written to {output_path}: generated IR failed validation")
 
     return {
         "description": description,
@@ -355,8 +534,9 @@ def _generate_ir(ctx: AgentContext) -> dict[str, Any]:
         "protocol": protocol,
         "ir_content": ir_content,
         "chars": len(ir_content),
-        "output_path": output_path or None,
-        "model": client.model,
+        "output_path": output_path if written else None,
+        "validation": validation,
+        "model": validation["model"],
     }
 
 
@@ -390,18 +570,21 @@ def _generate_subghz(ctx: AgentContext) -> dict[str, Any]:
         f"Output ONLY the raw .sub file content — no markdown, no explanation."
     )
 
-    client = _llm()
-    ctx.log(f"calling {client.model} @ {client.base_url} for SubGHz generation")
-    sub_content = client.chat(prompt, system=SYSTEM_SUBGHZ, max_tokens=4096)
+    sub_content, validation = _generate_with_validation(
+        ctx, kind="subghz", prompt=prompt, system=SYSTEM_SUBGHZ)
 
     output_path = ctx.inputs.get("output_path", "").strip()
-    if output_path:
+    written = False
+    if output_path and validation["passed"]:
         out = Path(output_path)
         if not out.is_absolute():
             out = REPO_ROOT / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(sub_content, encoding="utf-8")
+        written = True
         ctx.log(f"wrote {len(sub_content)} chars to {out}")
+    elif output_path:
+        ctx.log(f"NOT written to {output_path}: generated SubGHz failed validation")
 
     return {
         "description": description,
@@ -409,8 +592,9 @@ def _generate_subghz(ctx: AgentContext) -> dict[str, Any]:
         "preset": preset,
         "sub_content": sub_content,
         "chars": len(sub_content),
-        "output_path": output_path or None,
-        "model": client.model,
+        "output_path": output_path if written else None,
+        "validation": validation,
+        "model": validation["model"],
     }
 
 
@@ -442,18 +626,21 @@ def _generate_rfid(ctx: AgentContext) -> dict[str, Any]:
         f"Output ONLY the raw .rfid file content — no markdown, no explanation."
     )
 
-    client = _llm()
-    ctx.log(f"calling {client.model} @ {client.base_url} for RFID generation")
-    rfid_content = client.chat(prompt, system=SYSTEM_RFID, max_tokens=4096)
+    rfid_content, validation = _generate_with_validation(
+        ctx, kind="rfid", prompt=prompt, system=SYSTEM_RFID)
 
     output_path = ctx.inputs.get("output_path", "").strip()
-    if output_path:
+    written = False
+    if output_path and validation["passed"]:
         out = Path(output_path)
         if not out.is_absolute():
             out = REPO_ROOT / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(rfid_content, encoding="utf-8")
+        written = True
         ctx.log(f"wrote {len(rfid_content)} chars to {out}")
+    elif output_path:
+        ctx.log(f"NOT written to {output_path}: generated RFID failed validation")
 
     return {
         "description": description,
@@ -461,8 +648,9 @@ def _generate_rfid(ctx: AgentContext) -> dict[str, Any]:
         "key_type": key_type,
         "rfid_content": rfid_content,
         "chars": len(rfid_content),
-        "output_path": output_path or None,
-        "model": client.model,
+        "output_path": output_path if written else None,
+        "validation": validation,
+        "model": validation["model"],
     }
 
 
@@ -497,18 +685,21 @@ def _generate_nfc(ctx: AgentContext) -> dict[str, Any]:
         f"Output ONLY the raw .nfc file content — no markdown, no explanation."
     )
 
-    client = _llm()
-    ctx.log(f"calling {client.model} @ {client.base_url} for NFC generation")
-    nfc_content = client.chat(prompt, system=SYSTEM_NFC, max_tokens=4096)
+    nfc_content, validation = _generate_with_validation(
+        ctx, kind="nfc", prompt=prompt, system=SYSTEM_NFC)
 
     output_path = ctx.inputs.get("output_path", "").strip()
-    if output_path:
+    written = False
+    if output_path and validation["passed"]:
         out = Path(output_path)
         if not out.is_absolute():
             out = REPO_ROOT / out
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(nfc_content, encoding="utf-8")
+        written = True
         ctx.log(f"wrote {len(nfc_content)} chars to {out}")
+    elif output_path:
+        ctx.log(f"NOT written to {output_path}: generated NFC failed validation")
 
     return {
         "description": description,
@@ -517,8 +708,9 @@ def _generate_nfc(ctx: AgentContext) -> dict[str, Any]:
         "uid_size": uid_size,
         "nfc_content": nfc_content,
         "chars": len(nfc_content),
-        "output_path": output_path or None,
-        "model": client.model,
+        "output_path": output_path if written else None,
+        "validation": validation,
+        "model": validation["model"],
     }
 
 

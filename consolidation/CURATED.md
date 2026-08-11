@@ -76,6 +76,13 @@ Verify each on the real hardware, tick it off, and re-commit:
 | `lfrfid/AI_T5577_Emulation.rfid` | EM4100-style replay via T5577 | emulate near a generic EM4100 reader → confirm UID
 | `badusb/AI_SystemInfo_Gather.txt` | runs cleanly on a target Windows box | authorized machine only → plug in → confirm sysinfo.txt lands on Desktop
 
+> **Update (2026-08-11):** the `flipper-ai` generate commands now run every
+> generated payload through the same validators that gate `flipper-sync` and
+> self-correct up to 4 attempts — only validator-clean output is written to
+> disk (see README "Every generated payload is self-validated"). New
+> AI-generated files are therefore structurally guaranteed; the hardware pass
+> below remains the only way to confirm they *work on a real device*.
+>
 > When each is confirmed working, flip its row to ✅ (or `DELETE` if it never
 > works) and add a dated line to the decisions log. Until then, the build is
 > **done except for this hardware pass** — no PC-side step can finish it.
