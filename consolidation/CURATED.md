@@ -52,6 +52,33 @@ silently do nothing until you reconcile.
 | 2026-08-02 | _vendor | REVIEW_VENDOR | qFlipper cache; keep local, never sync to device |
 | 2026-08-02 | flipper-sync.ps1 / .cmd | ARCHIVE | Superseded by consolidation/autosync.ps1 |
 | 2026-08-11 | flipper-sync.ps1 / .cmd | KEEP | Decision **reverted** — autosync.ps1 only git-pulls the repo; flipper-sync.ps1 is the only device-push tool (README workflow depends on it) |
+| 2026-08-11 | AI-synthesized payloads (see below) | OPEN — verify on hardware | All payloads pass PC-side validators + data tests, but the LLM-synthesized files below were never confirmed against a real device/reader |
+
+---
+
+## ⏳ Remaining work: verify AI-synthesized payloads on real hardware
+
+Everything in the workspace passes the PC-side header validator and data
+tests (0 failures), but the following **LLM-synthesized** files were never
+tested on a physical device. "Unverified" = structurally valid + loadable,
+but nobody has confirmed the signal actually works against the target gear.
+
+Verify each on the real hardware, tick it off, and re-commit:
+
+| File | What to verify | How |
+| --- | --- | --- |
+| `subghz/AI_433_Gate_Remote.sub` | plays out on the Sub-GHz radio at 433.92 MHz | Sub-GHz → Read RAW → replay → check with an SDR receiver
+| `infrared/AI_LG_TV_Power.ir` | toggles an actual LG TV | point at the TV → Send → confirm power on/off
+| `infrared/AI_Roku_Home_OK.ir` | Home / OK on an actual Roku | point at the Roku → Send → confirm UI response
+| `infrared/AI_Samsung_Volume.ir` | volume up on an actual Samsung TV | point at the TV → Send → confirm volume changes
+| `lfrfid/AI_HID_Prox_37bit.rfid` | reads as a 37-bit HID Prox on an LF reader | emulate near an HID reader → confirm raw Wiegand bits
+| `lfrfid/AI_Indala_Prox.rfid` | reads as Indala on an LF reader | emulate near an Indala reader → confirm decode
+| `lfrfid/AI_T5577_Emulation.rfid` | EM4100-style replay via T5577 | emulate near a generic EM4100 reader → confirm UID
+| `badusb/AI_SystemInfo_Gather.txt` | runs cleanly on a target Windows box | authorized machine only → plug in → confirm sysinfo.txt lands on Desktop
+
+> When each is confirmed working, flip its row to ✅ (or `DELETE` if it never
+> works) and add a dated line to the decisions log. Until then, the build is
+> **done except for this hardware pass** — no PC-side step can finish it.
 
 ## After curation
 
