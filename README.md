@@ -641,13 +641,16 @@ Configure via environment variables (see `.env.example`):
 | Variable | Default | Description |
 |---|---|---|
 | `LLM_BASE_URL` | `http://localhost:8000/v1` | API base URL |
-| `LLM_MODEL` | `nousresearch/hermes-4-70b` | Model name to request |
+| `LLM_MODEL` | `qwen/qwen3-coder` | Model name to request |
 | `LLM_API_KEY` | `not-needed` | API key (blank for local servers) |
 
 A repo-root `.env` is honored automatically (`agentic/llm_client.py` calls
 `load_dotenv()`), so you can override any of these without touching shell
-state. The shipped default model is `nousresearch/hermes-4-70b`; earlier
-workspace docs referenced `ornith` (Ornith's vLLM serve command uses
+state. The shipped default model is `qwen/qwen3-coder` (via OpenRouter) —
+chosen because it reliably produces validator-clean payloads (4/5 on the
+first attempt in the smoke test, vs. hermes-4-70b which failed 3/5).
+`openai/gpt-5` and `nousresearch/hermes-4-70b` also work; earlier workspace
+docs referenced `ornith` (Ornith's vLLM serve command uses
 `--served-model-name ornith`, so that string is what you'd put in API
 requests if you run Ornith — just set `LLM_MODEL=ornith`).
 
