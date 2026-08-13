@@ -12,7 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Full history so the devintel git-metrics workflow (run by the
+      # agentic self-test) sees real commit throughput, not just HEAD.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -31,6 +35,13 @@ jobs:
       # EM4100 parity, BadUSB structure.
       - name: Data tests (test_flipper_payloads.py)
         run: python scripts/test_flipper_payloads.py
+
+      # Agentic workflow self-test: runs the full pipeline
+      # (validate -> curate -> sync-plan -> report) against a throwaway
+      # FileStore, plus resume-after-failure, keyword/vector search, and
+      # the devintel git-metrics workflow. No external services needed.
+      - name: Agentic workflow self-test (test_agentic_workflow.py)
+        run: python scripts/test_agentic_workflow.py
 
       # Cloudflare Worker (bugreaperx/) ships a TypeScript source tree
       # whose payload-generation API is gated by the same header checks
