@@ -53,6 +53,9 @@ silently do nothing until you reconcile.
 | 2026-08-02 | flipper-sync.ps1 / .cmd | ARCHIVE | Superseded by consolidation/autosync.ps1 |
 | 2026-08-11 | flipper-sync.ps1 / .cmd | KEEP | Decision **reverted** — autosync.ps1 only git-pulls the repo; flipper-sync.ps1 is the only device-push tool (README workflow depends on it) |
 | 2026-08-11 | AI-synthesized payloads (see below) | OPEN — verify on hardware | All payloads pass PC-side validators + data tests, but the LLM-synthesized files below were never confirmed against a real device/reader |
+| 2026-08-13 | bugreaperx worker (flipper-ai.ts + wrangler.jsonc) | COMMITTED | Self-validating generate*() with 4-attempt retry; LLM_BASE_URL→openrouter, LLM_MODEL=qwen/qwen3-coder. Commit `02396ce`. |
+| 2026-08-13 | .github/workflows/validate.yml | COMMITTED | Added `npm ci` + `tsc --noEmit` for the bugreaperx worker so CI guards worker regressions. Commit `f04c038`. |
+| 2026-08-13 | README "Current status" block | COMMITTED | Status table pinned to the 2026-08-13 local run; hardware pass remains the only open work. Commit `f04c038` (same change). |
 
 ---
 

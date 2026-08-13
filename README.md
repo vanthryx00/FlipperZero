@@ -318,6 +318,25 @@ checklist is tracked in `consolidation/CURATED.md`):
 > then, the build is **done except for this hardware pass** — no PC-side
 > step can finish it.
 
+### Current status (PC-side, automated)
+
+Last full local run on 2026-08-13, after commit `f04c038`:
+
+| Check | Tool | Result |
+| --- | --- | --- |
+| Header validator (37 files) | `scripts/verify_flipper_files.py` | 0 hard fails, exit 0 |
+| Data tests (33 files) | `scripts/test_flipper_payloads.py` | 0 failures, 16 trailing-gap warnings (real community captures — documented acceptable) |
+| Worker type-check | `bugreaperx/` `tsc --noEmit` | 0 errors |
+| Worker deploy parse | `wrangler deploy --dry-run` | OK — `LLM_BASE_URL=https://openrouter.ai/api/v1`, `LLM_MODEL=qwen/qwen3-coder` |
+| CI guard | `.github/workflows/validate.yml` | runs header + data tests + data-self-check + worker tsc on every push/PR |
+
+Self-validating generation (commit `02396ce`) is now committed and exercised
+by CI: every `generate*()` call in the bugreaperx worker routes through
+`generateValidated()`, which runs the same header checks that gate
+`flipper-sync`, with up to 4 retry-on-failure attempts. Newly generated
+AI payloads are structurally guaranteed; the hardware pass above is the
+only remaining open work.
+
 ## Workflow
 
 `flipper-sync.ps1` runs **both validators automatically before every
