@@ -22,9 +22,13 @@
 		"nodejs_compat"
 	],
 	"vars": {
-		"LLM_BASE_URL": "http://localhost:8000/v1",
+		"LLM_BASE_URL": "https://openrouter.ai/api/v1",
 		"LLM_MODEL": "qwen/qwen3-coder"
 	}
+	/**
+	 * Secrets (do NOT put the key in this file — use `.dev.vars` for local dev
+	 * or `wrangler secret put LLM_API_KEY` for deployed workers).
+	 */
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

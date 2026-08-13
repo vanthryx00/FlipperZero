@@ -287,6 +287,72 @@ export interface ChatOutput {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Self-validation (mirrors agentic/agents/flipper_ai.py + scripts/validators)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type GenKind = "badusb" | "ir" | "subghz" | "rfid" | "nfc";
+
+/** Extract raw payload content from a model reply that may be wrapped in
+ * ```-style markdown fences and/or carry a prose preamble. */
+function stripMarkdownFences(text: string): string {
+  const lines = text.split("\n");
+  const fenceIdx: number[] = [];
+  lines.forEach((ln, i) => {
+    if (ln.trim().startsWith("```")) fenceIdx.push(i);
+  });
+  if (fenceIdx.length >= 2) {
+    const start = fenceIdx[0];
+    const end = fenceIdx[fenceIdx.length - 1];
+    return lines.slice(start + 1, end).join("\n").trim();
+  }
+  return lines.filter((ln) => !ln.trim().startsWith("```")).join("\n").trim();
+}
+
+/** Header/structural checks used by the smoke suite (and the sync gate). */
+function validateGenerated(kind: GenKind, raw: string): { content: string; issues: string[] } {
+  const content = stripMarkdownFences(raw);
+  const issues: string[] = [];
+  const has = (k: string) => new RegExp(`^\\s*${k}\\s*:`, "im").test(content);
+  const hasNote = () =>
+    /synthesized|generated|honest.limit|not captured|not a real/i.test(content);
+
+  if (kind === "subghz") {
+    for (const k of ["Filetype", "Version", "Frequency", "Preset"]) {
+      if (!has(k)) issues.push(`missing '${k}:' header`);
+    }
+    if (!/RAW_Data\s*:/i.test(content)) issues.push("missing 'RAW_Data:' timing data");
+    if (!hasNote()) issues.push("missing honest-limits / safety note");
+  } else if (kind === "rfid") {
+    for (const k of ["Filetype", "Version", "Frequency", "Key type"]) {
+      if (!has(k)) issues.push(`missing '${k}:' header`);
+    }
+    if (!/^\s*Key\s*:|^\s*Data\s*:/im.test(content)) {
+      issues.push("missing 'Key:' or 'Data:' field");
+    }
+    if (!hasNote()) issues.push("missing honest-limits / safety note");
+  } else if (kind === "nfc") {
+    for (const k of ["Filetype", "Version", "Device type", "UID", "ATQA", "SAK"]) {
+      if (!has(k)) issues.push(`missing '${k}:' header`);
+    }
+    if (!/^\s*(Block [0-9]+|Page [0-9]+)\s*:/im.test(content)) {
+      issues.push("missing Block/Page data lines");
+    }
+    if (!hasNote()) issues.push("missing honest-limits / safety note");
+  } else if (kind === "ir") {
+    for (const k of ["Filetype", "Version", "name", "type"]) {
+      if (!has(k)) issues.push(`missing '${k}:' header`);
+    }
+    if (!hasNote()) issues.push("missing honest-limits / safety note");
+  } else if (kind === "badusb") {
+    const first = content.split(/\r?\n/).find((ln) => ln.trim())?.trim() || "";
+    if (!/^(ID|REM|DEFAULT_DELAY)/.test(first)) {
+      issues.push(`first non-blank line should be ID/REM/DEFAULT_DELAY, got: ${first.slice(0, 40)}`);
+    }
+  }
+  return { content, issues };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Client
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -333,7 +399,7 @@ export class FlipperAIClient {
         top_p: 0.95,
         max_tokens: maxTokens,
       }),
-      signal: AbortSignal.timeout(120_000),  // 2 min timeout for LLM inference
+      signal: AbortSignal.timeout(300_000),  // 5 min timeout for LLM inference (qwen3-coder can exceed 2 min)
     });
 
     if (!resp.ok) {
@@ -352,6 +418,42 @@ export class FlipperAIClient {
 
   // ── Public API ────────────────────────────────────────────────────────
 
+  /** Generate with the workspace-style validation gate: validate the output,
+   * feed concrete issues back to the model, retry (bounded). Returns the
+   * last content plus any remaining issues.
+   */
+  private async generateValidated(
+    kind: GenKind,
+    prompt: string,
+    system: string,
+    maxTokens: number = 4096,
+    maxAttempts: number = 4,
+  ): Promise<{ content: string; issues: string[] }> {
+    let current = prompt;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const raw = await this.chat(current, system, maxTokens);
+      const { content, issues } = validateGenerated(kind, raw);
+      if (issues.length === 0) {
+        return { content, issues: [] };
+      }
+      if (attempt >= maxAttempts) {
+        return { content, issues };
+      }
+      current = [
+        "Your previous output failed validation. Fix ALL of these issues and",
+        "output ONLY the corrected raw file content — no markdown fences, no",
+        "explanations, no preamble.",
+        "",
+        "Validator findings:",
+        ...issues.slice(0, 20).map((i) => `- ${i}`),
+        "",
+        "Original request:",
+        prompt,
+      ].join("\n");
+    }
+    return { content: "", issues: ["generateValidated: unreachable"] };
+  }
+
   async generateBadUSB(input: GenerateBadUSBInput): Promise<GenerateBadUSBOutput> {
     const targetOs = input.targetOs || "Windows";
     const author = input.author || "AI-generated";
@@ -364,7 +466,7 @@ export class FlipperAIClient {
       "Output ONLY the raw script — no markdown, no explanation.",
     ].join("\n");
 
-    const script = await this.chat(prompt, SYSTEM_BADUSB, 4096);
+    const { content: script } = await this.generateValidated("badusb", prompt, SYSTEM_BADUSB, 4096);
     return { description: input.description, targetOs, script, model: this.model };
   }
 
@@ -401,7 +503,7 @@ export class FlipperAIClient {
       "Output ONLY the raw .ir file content — no markdown, no explanation.",
     ].join("\n");
 
-    const irContent = await this.chat(prompt, SYSTEM_IR, 4096);
+    const { content: irContent } = await this.generateValidated("ir", prompt, SYSTEM_IR, 4096);
     return {
       description: input.description,
       frequency: freq,
@@ -423,7 +525,7 @@ export class FlipperAIClient {
       "Output ONLY the raw .sub file content — no markdown, no explanation.",
     ].join("\n");
 
-    const subContent = await this.chat(prompt, SYSTEM_SUBGHZ, 4096);
+    const { content: subContent } = await this.generateValidated("subghz", prompt, SYSTEM_SUBGHZ, 4096);
     return { description: input.description, frequency: freq, preset, subContent, model: this.model };
   }
 
@@ -439,7 +541,7 @@ export class FlipperAIClient {
       "Output ONLY the raw .rfid file content — no markdown, no explanation.",
     ].join("\n");
 
-    const rfidContent = await this.chat(prompt, SYSTEM_RFID, 4096);
+    const { content: rfidContent } = await this.generateValidated("rfid", prompt, SYSTEM_RFID, 4096);
     return { description: input.description, frequency: freq, keyType, rfidContent, model: this.model };
   }
 
@@ -479,7 +581,7 @@ export class FlipperAIClient {
       "Output ONLY the raw .nfc file content — no markdown, no explanation.",
     ].join("\n");
 
-    const nfcContent = await this.chat(prompt, SYSTEM_NFC, 4096);
+    const { content: nfcContent } = await this.generateValidated("nfc", prompt, SYSTEM_NFC, 4096);
     return { description: input.description, frequency: freq, protocol, uidSize, nfcContent, model: this.model };
   }
 

@@ -6,6 +6,8 @@ node_modules/
 # Wrangler local state + dev secrets (bugreaperx)
 bugreaperx/.wrangler/
 bugreaperx/.dev.vars
+# `wrangler deploy --dry-run --outdir` scratch -- safe to recreate
+bugreaperx/tmp/
 
 # Autosync runtime status (kept local, not versioned)
 consolidation/autosync.health.json
