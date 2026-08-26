@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "test": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "start": "wrangler dev",
     "dev": "wrangler dev",

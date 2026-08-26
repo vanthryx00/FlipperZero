@@ -110,13 +110,13 @@ _VALIDATOR_FNS: dict[str, tuple[str, str]] = {
 _FORMAT_EXAMPLES: dict[str, str] = {
     "subghz": (
         "Exact expected .sub format (RAW_Data MUST alternate strictly positive/negative "
-        "timings, start positive, no zero values):\n"
+        "timings, start positive and end positive, no zero values):\n"
         "Filetype: Flipper SubGhz RAW File\n"
         "Version: 1\n"
         "Frequency: 315000000\n"
         "Preset: FuriHalSubGhzPresetOok650Async\n"
         "Protocol: RAW\n"
-        "RAW_Data: 350 -300 450 -400 700 -600 350 -300 450 -400 700 -600 350 -300 450 -400 700 -600 350 -300 450 -400 700 -600\n"
+        "RAW_Data: 350 -300 450 -400 700 -600 350 -300 450 -400 700 -600 350 -300 450 -400 700 -600 350 -300 450 -400 700\n"
         "honest-limits: synthesized signal, NOT captured from a real device"
     ),
     "nfc": (
