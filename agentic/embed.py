@@ -19,14 +19,23 @@ _WORD_RE = re.compile(r"[a-z0-9]+")
 
 
 def cosine(a: list[float], b: list[float]) -> float:
+    """Compute cosine similarity between two vectors.
+
+    Optimized single-pass computation accumulating dot product and vector norms
+    simultaneously in a single loop pass over zip(a, b) and calling math.sqrt once.
+    """
     if len(a) != len(b):
         raise ValueError(f"vector dim mismatch: {len(a)} vs {len(b)}")
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(y * y for y in b))
-    if na == 0 or nb == 0:
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for x, y in zip(a, b):
+        dot += x * y
+        na += x * x
+        nb += y * y
+    if na == 0.0 or nb == 0.0:
         return 0.0
-    return dot / (na * nb)
+    return dot / math.sqrt(na * nb)
 
 
 def _hash_dim(token: str, dim: int, salt: int = 0) -> tuple[int, float]:
