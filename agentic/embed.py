@@ -8,10 +8,12 @@ an OpenAIEmbedder automatically.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import math
 import os
 import re
+from collections import Counter
 
 VECTOR_DIM = 256
 
@@ -21,14 +23,20 @@ _WORD_RE = re.compile(r"[a-z0-9]+")
 def cosine(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         raise ValueError(f"vector dim mismatch: {len(a)} vs {len(b)}")
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(y * y for y in b))
+    # Single-pass calculation of dot product and vector norms
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for x, y in zip(a, b):
+        dot += x * y
+        na += x * x
+        nb += y * y
     if na == 0 or nb == 0:
         return 0.0
-    return dot / (na * nb)
+    return dot / math.sqrt(na * nb)
 
 
+@functools.lru_cache(maxsize=8192)
 def _hash_dim(token: str, dim: int, salt: int = 0) -> tuple[int, float]:
     """Map a token to (index, sign) via SHA-256 -- stable across runs."""
     h = hashlib.sha256(f"{salt}:{token}".encode("utf-8")).digest()
@@ -49,11 +57,13 @@ class FeatureHashEmbedder:
         for tok in set(_WORD_RE.findall(low)):
             idx, sign = _hash_dim(tok, self.dim)
             vec[idx] += sign
-        # character trigrams add lightweight positional signal
+        # character trigrams add lightweight positional signal; count unique
+        # trigrams to avoid redundant hashing calls for repeated n-grams
         chars = re.sub(r"[^a-z0-9]", "", low)
-        for i in range(len(chars) - 2):
-            idx, _ = _hash_dim(chars[i : i + 3], self.dim, salt=1)
-            vec[idx] += 1.0
+        trigrams = Counter(chars[i : i + 3] for i in range(len(chars) - 2))
+        for tri, count in trigrams.items():
+            idx, _ = _hash_dim(tri, self.dim, salt=1)
+            vec[idx] += float(count)
         norm = math.sqrt(sum(v * v for v in vec))
         if norm == 0:
             return vec
