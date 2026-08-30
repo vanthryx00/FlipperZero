@@ -1,0 +1,3 @@
+## 2026-08-30 - FileStore Serialisation Bottleneck & Feature Hash Caching
+**Learning:** `FileStore.upsert_payload()` serialises the entire JSON database to disk on every single payload addition during `curate`. For N payloads, this causes O(N^2) JSON stringification overhead (taking ~700ms for 37 items). Batching upserts reduces disk write frequency from N to 1 and improves execution speed by ~6-7x (~100ms). In addition, feature-hashing token/trigram hashing in `FeatureHashEmbedder` re-computes SHA-256 for repeated tokens, which benefits significantly from LRU caching.
+**Action:** Always provide batch mutation APIs (`upsert_payloads`) for FileStore/AtlasStore when iterating over items, and LRU-cache deterministic hashing functions in embedders.
