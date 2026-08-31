@@ -124,16 +124,26 @@ class FileStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payload(self, doc: dict[str, Any]) -> str:
+        return self.upsert_payloads([doc])[0]
+
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert payload documents with a single disk save for performance."""
+        if not docs:
+            return []
+        ids: list[str] = []
         with self._lock:
-            doc["_id"] = doc.get("_id") or _new_id()
-            for i, d in enumerate(self._payloads):
-                if d.get("_id") == doc["_id"]:
-                    self._payloads[i] = doc
-                    break
-            else:
-                self._payloads.append(doc)
+            payload_map = {d["_id"]: i for i, d in enumerate(self._payloads) if "_id" in d}
+            for doc in docs:
+                doc_id = doc.get("_id") or _new_id()
+                doc["_id"] = doc_id
+                ids.append(doc_id)
+                if doc_id in payload_map:
+                    self._payloads[payload_map[doc_id]] = doc
+                else:
+                    payload_map[doc_id] = len(self._payloads)
+                    self._payloads.append(doc)
             self._save("payloads.json", self._payloads)
-        return doc["_id"]
+        return ids
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return self._payloads[:limit]
@@ -195,14 +205,18 @@ class FileStore:
         return [d for _, d in scored[:limit]]
 
     def vector_search_payloads(self, vector: list[float], limit: int = 5) -> list[dict[str, Any]]:
+        import math
         from .embed import cosine
 
+        na = math.sqrt(sum(x * x for x in vector))
+        if na == 0:
+            return []
         scored: list[tuple[float, dict[str, Any]]] = []
         for doc in self._payloads:
             emb = doc.get("embedding")
             if not emb:
                 continue
-            scored.append((cosine(vector, emb), doc))
+            scored.append((cosine(vector, emb, na=na), doc))
         scored.sort(key=lambda t: -t[0])
         return [d for _, d in scored[:limit]]
 
@@ -294,9 +308,23 @@ class AtlasStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payload(self, doc: dict[str, Any]) -> str:
-        doc["_id"] = doc.get("_id") or _new_id()
-        self.payloads.replace_one({"_id": doc["_id"]}, doc, upsert=True)
-        return doc["_id"]
+        return self.upsert_payloads([doc])[0]
+
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert payload documents using a single bulk_write call for performance."""
+        from pymongo import ReplaceOne
+
+        if not docs:
+            return []
+        ids: list[str] = []
+        ops = []
+        for doc in docs:
+            doc_id = doc.get("_id") or _new_id()
+            doc["_id"] = doc_id
+            ids.append(doc_id)
+            ops.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
+        self.payloads.bulk_write(ops)
+        return ids
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return list(self.payloads.find({}).limit(limit))

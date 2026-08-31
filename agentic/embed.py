@@ -18,14 +18,22 @@ VECTOR_DIM = 256
 _WORD_RE = re.compile(r"[a-z0-9]+")
 
 
-def cosine(a: list[float], b: list[float]) -> float:
+def cosine(a: list[float], b: list[float], na: float | None = None) -> float:
+    """Cosine similarity between vectors a and b.
+
+    Allows passing precomputed vector norm `na` to avoid redundant O(dim) calculations
+    when searching across multiple documents with a fixed query vector.
+    """
     if len(a) != len(b):
         raise ValueError(f"vector dim mismatch: {len(a)} vs {len(b)}")
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(y * y for y in b))
-    if na == 0 or nb == 0:
+    if na is None:
+        na = math.sqrt(sum(x * x for x in a))
+    if na == 0:
         return 0.0
+    nb = math.sqrt(sum(y * y for y in b))
+    if nb == 0:
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
     return dot / (na * nb)
 
 
