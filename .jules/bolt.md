@@ -1,0 +1,3 @@
+## 2026-09-05 - Batching payload store upserts in agentic workflow
+**Learning:** During workspace payload curation (`_curate`), saving payload documents individually (`upsert_payload`) forced `FileStore` to re-serialize and write `payloads.json` to disk for every single payload (N times) and `AtlasStore` to execute N distinct network round-trips. Introducing `upsert_payloads` batches state updates into a single disk write in `FileStore` or a `bulk_write` in `AtlasStore`.
+**Action:** When performing multi-item ingestion or state synchronization in agentic workflows, always expose and use batch methods (`upsert_payloads`) to avoid O(N) I/O re-serialization overhead.
