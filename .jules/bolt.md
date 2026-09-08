@@ -1,0 +1,3 @@
+## 2026-09-08 - Batching Store Upserts in Agentic Workflows
+**Learning:** Calling `upsert_payload` item-by-item inside agent loops causes severe I/O bottlenecks: in `FileStore`, each item triggers full JSON re-serialization to disk (37 items = 37 full disk saves per curate run); in `AtlasStore`, each item incurs network round-trips. Batching payload operations via `upsert_payloads` reduces disk writes to 1 write per run and allows bulk operations in Atlas.
+**Action:** Always batch multi-item document upserts in agent workflows (`upsert_payloads`) instead of looping over single-item store operations.
