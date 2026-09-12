@@ -124,16 +124,27 @@ class FileStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payload(self, doc: dict[str, Any]) -> str:
+        """Upsert a single payload document."""
+        return self.upsert_payloads([doc])[0]
+
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert multiple payload documents with a single disk save."""
+        if not docs:
+            return []
+        ids: list[str] = []
         with self._lock:
-            doc["_id"] = doc.get("_id") or _new_id()
-            for i, d in enumerate(self._payloads):
-                if d.get("_id") == doc["_id"]:
-                    self._payloads[i] = doc
-                    break
-            else:
-                self._payloads.append(doc)
+            index_map = {d["_id"]: i for i, d in enumerate(self._payloads) if "_id" in d}
+            for doc in docs:
+                doc["_id"] = doc.get("_id") or _new_id()
+                doc_id = doc["_id"]
+                if doc_id in index_map:
+                    self._payloads[index_map[doc_id]] = doc
+                else:
+                    index_map[doc_id] = len(self._payloads)
+                    self._payloads.append(doc)
+                ids.append(doc_id)
             self._save("payloads.json", self._payloads)
-        return doc["_id"]
+        return ids
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return self._payloads[:limit]
@@ -294,9 +305,24 @@ class AtlasStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payload(self, doc: dict[str, Any]) -> str:
-        doc["_id"] = doc.get("_id") or _new_id()
-        self.payloads.replace_one({"_id": doc["_id"]}, doc, upsert=True)
-        return doc["_id"]
+        """Upsert a single payload document."""
+        return self.upsert_payloads([doc])[0]
+
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert multiple payload documents using bulk_write to save network round-trips."""
+        if not docs:
+            return []
+        from pymongo import ReplaceOne
+
+        operations = []
+        ids: list[str] = []
+        for doc in docs:
+            doc["_id"] = doc.get("_id") or _new_id()
+            doc_id = doc["_id"]
+            operations.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
+            ids.append(doc_id)
+        self.payloads.bulk_write(operations)
+        return ids
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return list(self.payloads.find({}).limit(limit))
