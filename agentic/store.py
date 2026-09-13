@@ -123,17 +123,30 @@ class FileStore:
         return len(self._runs)
 
     # -- payloads ------------------------------------------------------
-    def upsert_payload(self, doc: dict[str, Any]) -> str:
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert payload docs into local JSON state with a single disk save."""
+        if not docs:
+            return []
+        ids: list[str] = []
         with self._lock:
-            doc["_id"] = doc.get("_id") or _new_id()
-            for i, d in enumerate(self._payloads):
-                if d.get("_id") == doc["_id"]:
-                    self._payloads[i] = doc
-                    break
-            else:
-                self._payloads.append(doc)
+            # Index existing payloads by _id for O(1) lookup
+            payload_map = {
+                d["_id"]: i for i, d in enumerate(self._payloads) if "_id" in d
+            }
+            for doc in docs:
+                doc_id = doc.get("_id") or _new_id()
+                doc["_id"] = doc_id
+                ids.append(doc_id)
+                if doc_id in payload_map:
+                    self._payloads[payload_map[doc_id]] = doc
+                else:
+                    self._payloads.append(doc)
+                    payload_map[doc_id] = len(self._payloads) - 1
             self._save("payloads.json", self._payloads)
-        return doc["_id"]
+        return ids
+
+    def upsert_payload(self, doc: dict[str, Any]) -> str:
+        return self.upsert_payloads([doc])[0]
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return self._payloads[:limit]
@@ -293,10 +306,24 @@ class AtlasStore:
         return self.runs.count_documents({})
 
     # -- payloads ------------------------------------------------------
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert payload docs in MongoDB Atlas via bulk_write."""
+        if not docs:
+            return []
+        from pymongo.operations import ReplaceOne
+
+        ops: list[ReplaceOne] = []
+        ids: list[str] = []
+        for doc in docs:
+            doc_id = doc.get("_id") or _new_id()
+            doc["_id"] = doc_id
+            ids.append(doc_id)
+            ops.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
+        self.payloads.bulk_write(ops, ordered=False)
+        return ids
+
     def upsert_payload(self, doc: dict[str, Any]) -> str:
-        doc["_id"] = doc.get("_id") or _new_id()
-        self.payloads.replace_one({"_id": doc["_id"]}, doc, upsert=True)
-        return doc["_id"]
+        return self.upsert_payloads([doc])[0]
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return list(self.payloads.find({}).limit(limit))
