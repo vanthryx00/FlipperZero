@@ -57,6 +57,18 @@ def main() -> int:
     check("curate is idempotent", n2 == n, f"before={n} after={n2}")
     check("stale docs removed on first rerun", rerun["steps"][0]["output"]["removed_stale"] == 0 or n2 == n)
 
+    # 1c. Batch upsert payloads functionality
+    test_docs = [
+        {"_id": "batch_1", "name": "batch_one.sub", "search_text": "batch sample one"},
+        {"_id": "batch_2", "name": "batch_two.sub", "search_text": "batch sample two"},
+    ]
+    u_ids = store.upsert_payloads(test_docs)
+    check("batch upsert returns document IDs", len(u_ids) == 2 and u_ids == ["batch_1", "batch_2"])
+    # Batch update existing doc
+    u_ids2 = store.upsert_payloads([{"_id": "batch_1", "name": "batch_one_updated.sub", "search_text": "batch sample one updated"}])
+    check("batch upsert updates existing doc", len(u_ids2) == 1 and u_ids2[0] == "batch_1")
+    store.remove_payloads_not_in({d["_id"] for d in store.list_payloads() if not d["_id"].startswith("batch_")})
+
     # 2. Keyword search
     hits = store.search_payloads("tesla charge port")
     check(
