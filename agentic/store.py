@@ -135,6 +135,25 @@ class FileStore:
             self._save("payloads.json", self._payloads)
         return doc["_id"]
 
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert multiple payload documents, saving to disk once per batch."""
+        if not docs:
+            return []
+        ids: list[str] = []
+        with self._lock:
+            for doc in docs:
+                doc_id = doc.get("_id") or _new_id()
+                doc["_id"] = doc_id
+                ids.append(doc_id)
+                for i, d in enumerate(self._payloads):
+                    if d.get("_id") == doc_id:
+                        self._payloads[i] = doc
+                        break
+                else:
+                    self._payloads.append(doc)
+            self._save("payloads.json", self._payloads)
+        return ids
+
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return self._payloads[:limit]
 
@@ -297,6 +316,21 @@ class AtlasStore:
         doc["_id"] = doc.get("_id") or _new_id()
         self.payloads.replace_one({"_id": doc["_id"]}, doc, upsert=True)
         return doc["_id"]
+
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert multiple payload documents via pymongo bulk_write."""
+        if not docs:
+            return []
+        from pymongo import ReplaceOne
+
+        ids: list[str] = []
+        operations = []
+        for doc in docs:
+            doc["_id"] = doc.get("_id") or _new_id()
+            ids.append(doc["_id"])
+            operations.append(ReplaceOne({"_id": doc["_id"]}, doc, upsert=True))
+        self.payloads.bulk_write(operations, ordered=False)
+        return ids
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return list(self.payloads.find({}).limit(limit))
