@@ -37,6 +37,18 @@ def main() -> int:
     store = FileStore(tmp)
     engine = Engine(store, workspace_root=ROOT)
 
+    # 0. Unit test for upsert_payloads batching
+    batch_docs = [{"_id": f"doc_{i}", "name": f"Item {i}", "kind": "test"} for i in range(5)]
+    ids = store.upsert_payloads(batch_docs)
+    check("upsert_payloads returns ids", len(ids) == 5 and ids[0] == "doc_0")
+    check("upsert_payloads writes docs", store.count_payloads() == 5)
+    # Updating via upsert_payloads
+    batch_docs[0]["name"] = "Item 0 Updated"
+    store.upsert_payloads([batch_docs[0]])
+    updated = [p for p in store.list_payloads() if p["_id"] == "doc_0"][0]
+    check("upsert_payloads updates existing", updated["name"] == "Item 0 Updated" and store.count_payloads() == 5)
+    store.reset()
+
     # 1. Full pipeline on the workspace
     run = engine.run(PIPELINE)
     check("pipeline completed", run["status"] == "completed", run["status"])
