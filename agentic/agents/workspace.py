@@ -148,6 +148,8 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
     curated: list[dict[str, str]] = []
     skipped: list[dict[str, str]] = []
     seen_ids: set[str] = set()
+    docs_to_upsert: list[dict[str, Any]] = []
+
     for path, kind in _walk_payload_files():
         try:
             raw = path.read_bytes()
@@ -174,9 +176,15 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
             "embedding": embedder.embed(search_text),
             "updated_at": _iso(),
         }
-        ctx.store.upsert_payload(doc)
+        docs_to_upsert.append(doc)
         seen_ids.add(doc["_id"])
         curated.append({"name": path.name, "kind": kind})
+
+    # Performance optimization: batch upsert all payload documents at once
+    # to avoid re-serializing payloads.json (FileStore) or making N round-trips (AtlasStore).
+    if docs_to_upsert:
+        ctx.store.upsert_payloads(docs_to_upsert)
+
     # Converge: drop docs for files that no longer exist (or whose content
     # hash changed), so re-running curate is idempotent.
     removed = ctx.store.remove_payloads_not_in(seen_ids)
