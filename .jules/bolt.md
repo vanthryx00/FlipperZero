@@ -1,3 +1,3 @@
-## 2026-08-28 - Single-Pass Cosine Similarity & Avoid Sqrt Bypassing
-**Learning:** Combining generator expressions into a single loop pass and computing math.sqrt once improves vector similarity performance cleanly. Attempting to bypass math.sqrt with loose tolerance unit-vector checks risks returning values outside [-1.0, 1.0].
-**Action:** Keep mathematical invariants exact and rely on clean single-pass loops over zip for Python vector math.
+## 2026-09-20 - Batching Store Upserts in Workflow Agent
+**Learning:** In agentic indexing/curation workflows that process multiple items, per-item store calls (`upsert_payload`) cause severe bottlenecking due to O(N) disk re-serializations in `FileStore` or O(N) network round-trips in `AtlasStore`.
+**Action:** Always provide and use batch store operations (`upsert_payloads`) for bulk updates to reduce store I/O from O(N) to O(1).
