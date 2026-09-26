@@ -22,7 +22,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .embed import cosine
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
+_WORD_RE = re.compile(r"[a-z0-9]+")
 
 
 class StoreFeatureError(RuntimeError):
@@ -124,72 +127,30 @@ class FileStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert payload documents, serializing to disk only once."""
-        """Batch upsert payload documents.
-
-        Batching avoids repeated disk re-serialization of payloads.json
-        during multi-item indexing operations.
-        """
-    def upsert_payload(self, doc: dict[str, Any]) -> str:
-        return self.upsert_payloads([doc])[0]
-
-    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
         """Batch upsert payload documents, serializing to disk once at the end."""
         if not docs:
             return []
         ids: list[str] = []
         with self._lock:
-            index_by_id = {d.get("_id"): i for i, d in enumerate(self._payloads) if "_id" in d}
-            idx_map = {
+            by_id = {
                 d["_id"]: i
                 for i, d in enumerate(self._payloads)
-                if isinstance(d, dict) and d.get("_id")
+                if isinstance(d, dict) and "_id" in d
             }
-            by_id = {d["_id"]: i for i, d in enumerate(self._payloads) if "_id" in d}
             for doc in docs:
                 doc_id = doc.get("_id") or _new_id()
                 doc["_id"] = doc_id
                 ids.append(doc_id)
-                if doc_id in index_by_id:
-                    self._payloads[index_by_id[doc_id]] = doc
+                if doc_id in by_id:
+                    self._payloads[by_id[doc_id]] = doc
                 else:
-                    index_by_id[doc_id] = len(self._payloads)
-                if doc_id in idx_map:
-                    self._payloads[idx_map[doc_id]] = doc
-                else:
-                    idx_map[doc_id] = len(self._payloads)
+                    by_id[doc_id] = len(self._payloads)
                     self._payloads.append(doc)
             self._save("payloads.json", self._payloads)
         return ids
 
     def upsert_payload(self, doc: dict[str, Any]) -> str:
         return self.upsert_payloads([doc])[0]
-                if doc_id in by_id:
-                    self._payloads[by_id[doc_id]] = doc
-                else:
-                    self._payloads.append(doc)
-                    by_id[doc_id] = len(self._payloads) - 1
-            self._save("payloads.json", self._payloads)
-        return ids
-
-    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert multiple payload documents, saving to disk once per batch."""
-        if not docs:
-            return []
-        ids: list[str] = []
-        with self._lock:
-            for doc in docs:
-                doc_id = doc.get("_id") or _new_id()
-                doc["_id"] = doc_id
-                ids.append(doc_id)
-                for i, d in enumerate(self._payloads):
-                    if d.get("_id") == doc_id:
-                        self._payloads[i] = doc
-                        break
-                else:
-                    self._payloads.append(doc)
-            self._save("payloads.json", self._payloads)
-        return ids
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return self._payloads[:limit]
@@ -235,13 +196,13 @@ class FileStore:
     # -- retrieval -----------------------------------------------------
     def search_payloads(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """Token-overlap scoring over search_text (mimics $text OR semantics)."""
-        q_tokens = set(re.findall(r"[a-z0-9]+", query.lower()))
+        q_tokens = set(_WORD_RE.findall(query.lower()))
         if not q_tokens:
             return []
         scored: list[tuple[float, dict[str, Any]]] = []
         for doc in self._payloads:
             text = (doc.get("search_text") or "").lower()
-            doc_tokens = set(re.findall(r"[a-z0-9]+", text))
+            doc_tokens = set(_WORD_RE.findall(text))
             if not doc_tokens:
                 continue
             overlap = len(q_tokens & doc_tokens)
@@ -251,8 +212,6 @@ class FileStore:
         return [d for _, d in scored[:limit]]
 
     def vector_search_payloads(self, vector: list[float], limit: int = 5) -> list[dict[str, Any]]:
-        from .embed import cosine
-
         scored: list[tuple[float, dict[str, Any]]] = []
         for doc in self._payloads:
             emb = doc.get("embedding")
@@ -350,64 +309,23 @@ class AtlasStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert payload documents using bulk_write."""
-        """Batch upsert payload documents via pymongo bulk_write.
-
-        Batching replaces multiple round-trip write calls with a single
-        bulk network request.
-        """
+        """Batch upsert payload documents via pymongo bulk_write."""
         if not docs:
             return []
         from pymongo import ReplaceOne
 
         ids: list[str] = []
         operations = []
-        ops = []
-        ids: list[str] = []
         for doc in docs:
             doc_id = doc.get("_id") or _new_id()
             doc["_id"] = doc_id
             ids.append(doc_id)
             operations.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
-        if operations:
-            self.payloads.bulk_write(operations, ordered=False)
-            ops.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
-        self.payloads.bulk_write(ops, ordered=False)
+        self.payloads.bulk_write(operations, ordered=False)
         return ids
 
     def upsert_payload(self, doc: dict[str, Any]) -> str:
         return self.upsert_payloads([doc])[0]
-
-    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert payload documents via bulk_write."""
-        if not docs:
-            return []
-        from pymongo.operations import ReplaceOne
-
-        ids: list[str] = []
-        ops: list[ReplaceOne] = []
-        for doc in docs:
-            doc_id = doc.get("_id") or _new_id()
-            doc["_id"] = doc_id
-            ids.append(doc_id)
-            ops.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
-        self.payloads.bulk_write(ops, ordered=False)
-        return ids
-
-    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert multiple payload documents via pymongo bulk_write."""
-        if not docs:
-            return []
-        from pymongo import ReplaceOne
-
-        ids: list[str] = []
-        operations = []
-        for doc in docs:
-            doc["_id"] = doc.get("_id") or _new_id()
-            ids.append(doc["_id"])
-            operations.append(ReplaceOne({"_id": doc["_id"]}, doc, upsert=True))
-        self.payloads.bulk_write(operations, ordered=False)
-        return ids
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
         return list(self.payloads.find({}).limit(limit))
@@ -439,7 +357,6 @@ class AtlasStore:
 
     # -- retrieval -----------------------------------------------------
     def search_payloads(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
-        """Keyword search via $text -- works on the free M0 tier."""
         """Keyword search via $text -- works on the free M0 tier."""
         try:
             return list(
