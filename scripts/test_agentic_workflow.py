@@ -69,6 +69,21 @@ def main() -> int:
     check("curate is idempotent", n2 == n, f"before={n} after={n2}")
     check("stale docs removed on first rerun", rerun["steps"][0]["output"]["removed_stale"] == 0 or n2 == n)
 
+    # 1c. Direct unit test for store batch upsert_payloads
+    test_tmp = Path(tempfile.mkdtemp(prefix="agentic_batchtest_"))
+    bstore = FileStore(test_tmp)
+    check("batch empty list", bstore.upsert_payloads([]) == [])
+    bids = bstore.upsert_payloads([
+        {"_id": "b1", "name": "batch1.sub", "kind": "subghz"},
+        {"_id": "b2", "name": "batch2.sub", "kind": "subghz"},
+    ])
+    check("batch insert returns ids", bids == ["b1", "b2"] and bstore.count_payloads() == 2)
+    bids_up = bstore.upsert_payloads([
+        {"_id": "b1", "name": "batch1_updated.sub", "kind": "subghz"},
+        {"_id": "b3", "name": "batch3.sub", "kind": "subghz"},
+    ])
+    check("batch update and insert", bids_up == ["b1", "b3"] and bstore.count_payloads() == 3)
+
     # 2. Keyword search
     hits = store.search_payloads("tesla charge port")
     check(
