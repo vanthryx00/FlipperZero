@@ -133,6 +133,10 @@ class FileStore:
         Optimizes disk I/O and JSON serialization by saving payloads.json once
         per batch and using an ID index map for O(1) document replacements.
         """
+        return self.upsert_payloads([doc])[0]
+
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert payload documents, avoiding repeated disk re-serialization."""
         if not docs:
             return []
         ids: list[str] = []
@@ -140,6 +144,8 @@ class FileStore:
             id_to_index = {
                 d["_id"]: i for i, d in enumerate(self._payloads) if "_id" in d
             }
+            # Index existing payloads by _id for O(1) lookup during batch updates
+            existing_map = {d.get("_id"): i for i, d in enumerate(self._payloads) if "_id" in d}
             for doc in docs:
                 doc_id = doc.get("_id") or _new_id()
                 doc["_id"] = doc_id
@@ -148,6 +154,10 @@ class FileStore:
                     self._payloads[id_to_index[doc_id]] = doc
                 else:
                     id_to_index[doc_id] = len(self._payloads)
+                if doc_id in existing_map:
+                    self._payloads[existing_map[doc_id]] = doc
+                else:
+                    existing_map[doc_id] = len(self._payloads)
                     self._payloads.append(doc)
             self._save("payloads.json", self._payloads)
         return ids

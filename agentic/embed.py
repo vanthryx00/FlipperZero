@@ -19,6 +19,11 @@ _WORD_RE = re.compile(r"[a-z0-9]+")
 
 
 def cosine(a: list[float], b: list[float]) -> float:
+    """Compute cosine similarity between two vectors.
+
+    Optimized single-pass computation accumulating dot product and vector norms
+    simultaneously in a single loop pass over zip(a, b) and calling math.sqrt once.
+    """
     if len(a) != len(b):
         raise ValueError(f"vector dim mismatch: {len(a)} vs {len(b)}")
     # Single-pass accumulation: computes dot product and squared sums concurrently
