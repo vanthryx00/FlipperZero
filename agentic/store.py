@@ -124,6 +124,7 @@ class FileStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert payload documents, serializing to disk only once."""
         """Batch upsert payload documents.
 
         Batching avoids repeated disk re-serialization of payloads.json
@@ -138,6 +139,7 @@ class FileStore:
             return []
         ids: list[str] = []
         with self._lock:
+            index_by_id = {d.get("_id"): i for i, d in enumerate(self._payloads) if "_id" in d}
             idx_map = {
                 d["_id"]: i
                 for i, d in enumerate(self._payloads)
@@ -148,6 +150,10 @@ class FileStore:
                 doc_id = doc.get("_id") or _new_id()
                 doc["_id"] = doc_id
                 ids.append(doc_id)
+                if doc_id in index_by_id:
+                    self._payloads[index_by_id[doc_id]] = doc
+                else:
+                    index_by_id[doc_id] = len(self._payloads)
                 if doc_id in idx_map:
                     self._payloads[idx_map[doc_id]] = doc
                 else:
@@ -344,6 +350,7 @@ class AtlasStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert payload documents using bulk_write."""
         """Batch upsert payload documents via pymongo bulk_write.
 
         Batching replaces multiple round-trip write calls with a single
@@ -353,12 +360,17 @@ class AtlasStore:
             return []
         from pymongo import ReplaceOne
 
+        ids: list[str] = []
+        operations = []
         ops = []
         ids: list[str] = []
         for doc in docs:
             doc_id = doc.get("_id") or _new_id()
             doc["_id"] = doc_id
             ids.append(doc_id)
+            operations.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
+        if operations:
+            self.payloads.bulk_write(operations, ordered=False)
             ops.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
         self.payloads.bulk_write(ops, ordered=False)
         return ids
