@@ -178,13 +178,8 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
         docs_to_upsert.append(doc)
         seen_ids.add(doc["_id"])
         curated.append({"name": path.name, "kind": kind})
-    # Optimization: batch upsert payload docs to avoid repeated disk serialization/writes or network calls
     if docs_to_upsert:
-        if hasattr(ctx.store, "upsert_payloads"):
-            ctx.store.upsert_payloads(docs_to_upsert)
-        else:
-            for d in docs_to_upsert:
-                ctx.store.upsert_payload(d)
+        ctx.store.upsert_payloads(docs_to_upsert)
     # Converge: drop docs for files that no longer exist (or whose content
     # hash changed), so re-running curate is idempotent.
     removed = ctx.store.remove_payloads_not_in(seen_ids)
