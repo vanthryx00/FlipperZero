@@ -305,6 +305,11 @@ class AtlasStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payload(self, doc: dict[str, Any]) -> str:
+        """Upsert a single payload document."""
+        return self.upsert_payloads([doc])[0]
+
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert multiple payload documents (uses bulk_write in a single request)."""
         return self.upsert_payloads([doc])[0]
 
     def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:

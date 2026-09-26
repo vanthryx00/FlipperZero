@@ -149,6 +149,7 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
     skipped: list[dict[str, str]] = []
     seen_ids: set[str] = set()
     docs_to_upsert: list[dict[str, Any]] = []
+
     for path, kind in _walk_payload_files():
         try:
             raw = path.read_bytes()
