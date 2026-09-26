@@ -175,12 +175,12 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
             "embedding": embedder.embed(search_text),
             "updated_at": _iso(),
         }
-        docs.append(doc)
+        docs_to_upsert.append(doc)
         seen_ids.add(doc["_id"])
         curated.append({"name": path.name, "kind": kind})
-    # Batch upsert payload docs to minimize disk I/O / network round-trips
-    if docs:
-        ctx.store.upsert_payloads(docs)
+    # Optimization: Batch store payload operations via `upsert_payloads` to avoid repeated disk re-serialization in `FileStore` and network round-trips in `AtlasStore`.
+    if docs_to_upsert:
+        ctx.store.upsert_payloads(docs_to_upsert)
     # Converge: drop docs for files that no longer exist (or whose content
     # hash changed), so re-running curate is idempotent.
     removed = ctx.store.remove_payloads_not_in(seen_ids)
