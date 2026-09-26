@@ -124,6 +124,15 @@ class FileStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payload(self, doc: dict[str, Any]) -> str:
+        res = self.upsert_payloads([doc])
+        return res[0]
+
+    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
+        """Batch upsert multiple payload documents into FileStore.
+
+        Optimizes disk I/O and JSON serialization by saving payloads.json once
+        per batch and using an ID index map for O(1) document replacements.
+        """
         return self.upsert_payloads([doc])[0]
 
     def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
@@ -132,12 +141,19 @@ class FileStore:
             return []
         ids: list[str] = []
         with self._lock:
+            id_to_index = {
+                d["_id"]: i for i, d in enumerate(self._payloads) if "_id" in d
+            }
             # Index existing payloads by _id for O(1) lookup during batch updates
             existing_map = {d.get("_id"): i for i, d in enumerate(self._payloads) if "_id" in d}
             for doc in docs:
                 doc_id = doc.get("_id") or _new_id()
                 doc["_id"] = doc_id
                 ids.append(doc_id)
+                if doc_id in id_to_index:
+                    self._payloads[id_to_index[doc_id]] = doc
+                else:
+                    id_to_index[doc_id] = len(self._payloads)
                 if doc_id in existing_map:
                     self._payloads[existing_map[doc_id]] = doc
                 else:
@@ -305,28 +321,27 @@ class AtlasStore:
 
     # -- payloads ------------------------------------------------------
     def upsert_payload(self, doc: dict[str, Any]) -> str:
-        """Upsert a single payload document."""
-        return self.upsert_payloads([doc])[0]
+        res = self.upsert_payloads([doc])
+        return res[0]
 
     def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert multiple payload documents (uses bulk_write in a single request)."""
-        return self.upsert_payloads([doc])[0]
+        """Batch upsert multiple payload documents into AtlasStore.
 
-    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert payload documents, avoiding repeated network round-trips."""
+        Uses ReplaceOne in a single bulk_write call to avoid repeated network
+        round-trips.
+        """
         if not docs:
             return []
         from pymongo import ReplaceOne
 
+        requests = []
         ids: list[str] = []
-        ops = []
         for doc in docs:
             doc_id = doc.get("_id") or _new_id()
             doc["_id"] = doc_id
             ids.append(doc_id)
-            ops.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
-        if ops:
-            self.payloads.bulk_write(ops, ordered=False)
+            requests.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
+        self.payloads.bulk_write(requests, ordered=False)
         return ids
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
