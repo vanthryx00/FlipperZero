@@ -37,6 +37,18 @@ def main() -> int:
     store = FileStore(tmp)
     engine = Engine(store, workspace_root=ROOT)
 
+    # 0. Unit test for upsert_payloads batching
+    batch_docs = [{"_id": f"doc_{i}", "name": f"Item {i}", "kind": "test"} for i in range(5)]
+    ids = store.upsert_payloads(batch_docs)
+    check("upsert_payloads returns ids", len(ids) == 5 and ids[0] == "doc_0")
+    check("upsert_payloads writes docs", store.count_payloads() == 5)
+    # Updating via upsert_payloads
+    batch_docs[0]["name"] = "Item 0 Updated"
+    store.upsert_payloads([batch_docs[0]])
+    updated = [p for p in store.list_payloads() if p["_id"] == "doc_0"][0]
+    check("upsert_payloads updates existing", updated["name"] == "Item 0 Updated" and store.count_payloads() == 5)
+    store.reset()
+
     # 1. Full pipeline on the workspace
     run = engine.run(PIPELINE)
     check("pipeline completed", run["status"] == "completed", run["status"])
@@ -56,6 +68,32 @@ def main() -> int:
     n2 = store.count_payloads()
     check("curate is idempotent", n2 == n, f"before={n} after={n2}")
     check("stale docs removed on first rerun", rerun["steps"][0]["output"]["removed_stale"] == 0 or n2 == n)
+
+    # 1c. Batch upsert payloads functionality
+    test_docs = [
+        {"_id": "batch_1", "name": "batch_one.sub", "search_text": "batch sample one"},
+        {"_id": "batch_2", "name": "batch_two.sub", "search_text": "batch sample two"},
+    ]
+    u_ids = store.upsert_payloads(test_docs)
+    check("batch upsert returns document IDs", len(u_ids) == 2 and u_ids == ["batch_1", "batch_2"])
+    # Batch update existing doc
+    u_ids2 = store.upsert_payloads([{"_id": "batch_1", "name": "batch_one_updated.sub", "search_text": "batch sample one updated"}])
+    check("batch upsert updates existing doc", len(u_ids2) == 1 and u_ids2[0] == "batch_1")
+    store.remove_payloads_not_in({d["_id"] for d in store.list_payloads() if not d["_id"].startswith("batch_")})
+    # 1c. Direct unit test for store batch upsert_payloads
+    test_tmp = Path(tempfile.mkdtemp(prefix="agentic_batchtest_"))
+    bstore = FileStore(test_tmp)
+    check("batch empty list", bstore.upsert_payloads([]) == [])
+    bids = bstore.upsert_payloads([
+        {"_id": "b1", "name": "batch1.sub", "kind": "subghz"},
+        {"_id": "b2", "name": "batch2.sub", "kind": "subghz"},
+    ])
+    check("batch insert returns ids", bids == ["b1", "b2"] and bstore.count_payloads() == 2)
+    bids_up = bstore.upsert_payloads([
+        {"_id": "b1", "name": "batch1_updated.sub", "kind": "subghz"},
+        {"_id": "b3", "name": "batch3.sub", "kind": "subghz"},
+    ])
+    check("batch update and insert", bids_up == ["b1", "b3"] and bstore.count_payloads() == 3)
 
     # 2. Keyword search
     hits = store.search_payloads("tesla charge port")
