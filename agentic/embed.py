@@ -8,6 +8,7 @@ an OpenAIEmbedder automatically.
 """
 from __future__ import annotations
 
+from functools import lru_cache
 import hashlib
 import math
 import os
@@ -40,6 +41,8 @@ def cosine(a: list[float], b: list[float]) -> float:
     return dot / math.sqrt(sa * sb)
 
 
+# Memoize deterministic hash dimension calculations to avoid repetitive SHA-256 digest computations
+@lru_cache(maxsize=2048)
 def _hash_dim(token: str, dim: int, salt: int = 0) -> tuple[int, float]:
     """Map a token to (index, sign) via SHA-256 -- stable across runs."""
     h = hashlib.sha256(f"{salt}:{token}".encode("utf-8")).digest()

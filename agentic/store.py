@@ -123,70 +123,31 @@ class FileStore:
         return len(self._runs)
 
     # -- payloads ------------------------------------------------------
-    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert payload documents, serializing to disk only once."""
-        """Batch upsert payload documents.
-
-        Batching avoids repeated disk re-serialization of payloads.json
-        during multi-item indexing operations.
-        """
     def upsert_payload(self, doc: dict[str, Any]) -> str:
         return self.upsert_payloads([doc])[0]
 
     def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert payload documents, serializing to disk once at the end."""
+        """Batch upsert payload documents, serializing to disk once at the end.
+
+        Uses an in-memory index map for O(1) payload index lookups.
+        """
         if not docs:
             return []
         ids: list[str] = []
         with self._lock:
-            index_by_id = {d.get("_id"): i for i, d in enumerate(self._payloads) if "_id" in d}
-            idx_map = {
+            by_id = {
                 d["_id"]: i
                 for i, d in enumerate(self._payloads)
-                if isinstance(d, dict) and d.get("_id")
+                if isinstance(d, dict) and "_id" in d
             }
-            by_id = {d["_id"]: i for i, d in enumerate(self._payloads) if "_id" in d}
             for doc in docs:
                 doc_id = doc.get("_id") or _new_id()
                 doc["_id"] = doc_id
                 ids.append(doc_id)
-                if doc_id in index_by_id:
-                    self._payloads[index_by_id[doc_id]] = doc
-                else:
-                    index_by_id[doc_id] = len(self._payloads)
-                if doc_id in idx_map:
-                    self._payloads[idx_map[doc_id]] = doc
-                else:
-                    idx_map[doc_id] = len(self._payloads)
-                    self._payloads.append(doc)
-            self._save("payloads.json", self._payloads)
-        return ids
-
-    def upsert_payload(self, doc: dict[str, Any]) -> str:
-        return self.upsert_payloads([doc])[0]
                 if doc_id in by_id:
                     self._payloads[by_id[doc_id]] = doc
                 else:
-                    self._payloads.append(doc)
-                    by_id[doc_id] = len(self._payloads) - 1
-            self._save("payloads.json", self._payloads)
-        return ids
-
-    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert multiple payload documents, saving to disk once per batch."""
-        if not docs:
-            return []
-        ids: list[str] = []
-        with self._lock:
-            for doc in docs:
-                doc_id = doc.get("_id") or _new_id()
-                doc["_id"] = doc_id
-                ids.append(doc_id)
-                for i, d in enumerate(self._payloads):
-                    if d.get("_id") == doc_id:
-                        self._payloads[i] = doc
-                        break
-                else:
+                    by_id[doc_id] = len(self._payloads)
                     self._payloads.append(doc)
             self._save("payloads.json", self._payloads)
         return ids
@@ -349,8 +310,10 @@ class AtlasStore:
         return self.runs.count_documents({})
 
     # -- payloads ------------------------------------------------------
+    def upsert_payload(self, doc: dict[str, Any]) -> str:
+        return self.upsert_payloads([doc])[0]
+
     def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert payload documents using bulk_write."""
         """Batch upsert payload documents via pymongo bulk_write.
 
         Batching replaces multiple round-trip write calls with a single
@@ -362,8 +325,6 @@ class AtlasStore:
 
         ids: list[str] = []
         operations = []
-        ops = []
-        ids: list[str] = []
         for doc in docs:
             doc_id = doc.get("_id") or _new_id()
             doc["_id"] = doc_id
@@ -371,42 +332,6 @@ class AtlasStore:
             operations.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
         if operations:
             self.payloads.bulk_write(operations, ordered=False)
-            ops.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
-        self.payloads.bulk_write(ops, ordered=False)
-        return ids
-
-    def upsert_payload(self, doc: dict[str, Any]) -> str:
-        return self.upsert_payloads([doc])[0]
-
-    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert payload documents via bulk_write."""
-        if not docs:
-            return []
-        from pymongo.operations import ReplaceOne
-
-        ids: list[str] = []
-        ops: list[ReplaceOne] = []
-        for doc in docs:
-            doc_id = doc.get("_id") or _new_id()
-            doc["_id"] = doc_id
-            ids.append(doc_id)
-            ops.append(ReplaceOne({"_id": doc_id}, doc, upsert=True))
-        self.payloads.bulk_write(ops, ordered=False)
-        return ids
-
-    def upsert_payloads(self, docs: list[dict[str, Any]]) -> list[str]:
-        """Batch upsert multiple payload documents via pymongo bulk_write."""
-        if not docs:
-            return []
-        from pymongo import ReplaceOne
-
-        ids: list[str] = []
-        operations = []
-        for doc in docs:
-            doc["_id"] = doc.get("_id") or _new_id()
-            ids.append(doc["_id"])
-            operations.append(ReplaceOne({"_id": doc["_id"]}, doc, upsert=True))
-        self.payloads.bulk_write(operations, ordered=False)
         return ids
 
     def list_payloads(self, limit: int = 10_000) -> list[dict[str, Any]]:
@@ -439,7 +364,6 @@ class AtlasStore:
 
     # -- retrieval -----------------------------------------------------
     def search_payloads(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
-        """Keyword search via $text -- works on the free M0 tier."""
         """Keyword search via $text -- works on the free M0 tier."""
         try:
             return list(
