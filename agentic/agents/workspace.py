@@ -149,6 +149,9 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
     skipped: list[dict[str, str]] = []
     seen_ids: set[str] = set()
     docs_to_upsert: list[dict[str, Any]] = []
+
+    # First pass: collect payload documents and search texts
+    items: list[tuple[dict[str, Any], str]] = []
     for path, kind in _walk_payload_files():
         try:
             raw = path.read_bytes()
@@ -172,12 +175,21 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
             "attribution": attribution,
             "notes": notes,
             "search_text": search_text.lower(),
-            "embedding": embedder.embed(search_text),
             "updated_at": _iso(),
         }
-        docs_to_upsert.append(doc)
-        seen_ids.add(doc["_id"])
-        curated.append({"name": path.name, "kind": kind})
+        items.append((doc, search_text))
+
+    if items:
+        # Optimization: batch compute embeddings using embed_many to reduce network API round-trips
+        # in OpenAIEmbedder from O(N) sequential calls to 1 single batch call.
+        search_texts = [st for _, st in items]
+        embeddings = embedder.embed_many(search_texts)
+        for (doc, _), emb in zip(items, embeddings):
+            doc["embedding"] = emb
+            docs_to_upsert.append(doc)
+            seen_ids.add(doc["_id"])
+            curated.append({"name": doc["name"], "kind": doc["kind"]})
+
     # Optimization: batch upsert payload docs to avoid repeated disk serialization/writes or network calls
     if docs_to_upsert:
         if hasattr(ctx.store, "upsert_payloads"):
