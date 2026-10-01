@@ -149,6 +149,7 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
     skipped: list[dict[str, str]] = []
     seen_ids: set[str] = set()
     docs_to_upsert: list[dict[str, Any]] = []
+    search_texts: list[str] = []
     for path, kind in _walk_payload_files():
         try:
             raw = path.read_bytes()
@@ -172,14 +173,20 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
             "attribution": attribution,
             "notes": notes,
             "search_text": search_text.lower(),
-            "embedding": embedder.embed(search_text),
             "updated_at": _iso(),
         }
         docs_to_upsert.append(doc)
+        search_texts.append(search_text)
         seen_ids.add(doc["_id"])
         curated.append({"name": path.name, "kind": kind})
-    # Optimization: batch upsert payload docs to avoid repeated disk serialization/writes or network calls
+    # Optimization: batch vector embedding calls via embedder.embed_many(...) to reduce
+    # sequential network API calls from O(N) to O(1) when using OpenAIEmbedder.
+    # Batch upsert payload docs to avoid repeated disk serialization/writes or network calls.
     if docs_to_upsert:
+        embeddings = embedder.embed_many(search_texts)
+        for doc, emb in zip(docs_to_upsert, embeddings):
+            doc["embedding"] = emb
+
         if hasattr(ctx.store, "upsert_payloads"):
             ctx.store.upsert_payloads(docs_to_upsert)
         else:
