@@ -149,6 +149,10 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
     skipped: list[dict[str, str]] = []
     seen_ids: set[str] = set()
     docs_to_upsert: list[dict[str, Any]] = []
+
+    # Collect payload metadata and search texts first
+    raw_items: list[tuple[Path, str, bytes, dict[str, str], str, str, str]] = []
+    search_texts: list[str] = []
     for path, kind in _walk_payload_files():
         try:
             raw = path.read_bytes()
@@ -162,6 +166,15 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
         search_text = " ".join(
             filter(None, [path.name, kind, *headers.values(), attribution, notes])
         )
+        raw_items.append((path, kind, raw, headers, attribution, notes, search_text))
+        search_texts.append(search_text)
+
+    # Optimization: Batch vector embedding generation to reduce API call overhead from O(N) to O(1)
+    embeddings = embedder.embed_many(search_texts) if search_texts else []
+
+    for (path, kind, raw, headers, attribution, notes, search_text), emb in zip(
+        raw_items, embeddings
+    ):
         doc = {
             "_id": _sha256(raw),  # hash the original bytes, not re-encoded text
             "name": path.name,
@@ -172,12 +185,13 @@ def _curate(ctx: AgentContext) -> dict[str, Any]:
             "attribution": attribution,
             "notes": notes,
             "search_text": search_text.lower(),
-            "embedding": embedder.embed(search_text),
+            "embedding": emb,
             "updated_at": _iso(),
         }
         docs_to_upsert.append(doc)
         seen_ids.add(doc["_id"])
         curated.append({"name": path.name, "kind": kind})
+
     # Optimization: batch upsert payload docs to avoid repeated disk serialization/writes or network calls
     if docs_to_upsert:
         if hasattr(ctx.store, "upsert_payloads"):
