@@ -8,3 +8,6 @@
 ## 2026-09-29 - LRU Caching for Deterministic Token Hashing in Feature Hashing
 **Learning:** In feature-hashing embedders, calculating SHA-256 digests (`hashlib.sha256`) for every word token and character trigram introduces significant CPU overhead during bulk document embedding, as tokens across documents overlap heavily.
 **Action:** Use `@functools.lru_cache` on pure deterministic hashing helper functions (`_hash_dim`) to eliminate redundant SHA-256 computations across items.
+## 2026-10-04 - Batch Embedding Generation in Curation Workflows
+**Learning:** Sequential per-item `embedder.embed(text)` calls in multi-document curation loops cause $O(N)$ network API round-trips when using remote embedders (e.g. OpenAIEmbedder), adding multi-second API delays.
+**Action:** Always batch vector embedding generation via `embedder.embed_many(texts)` during bulk document ingestion/curation.
